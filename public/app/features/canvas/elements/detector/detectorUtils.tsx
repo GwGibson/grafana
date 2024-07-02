@@ -33,16 +33,16 @@ export const parseChannelMappings = (inputText: string): Array<[number, number, 
   return mappings.length > 0 ? mappings : undefined;
 };
 
-export const generateSweepFlags = (data: Array<[number, number, number, number]>): boolean[] => {
+export const generateSweepFlags = (data: Array<[number, number, number, number]>): number[] => {
   const coordinateTracker = new Set<string>();
   const sweepFlags = data.map(([_, x, y, __]) => {
     const coordKey = `${x},${y}`;
-    let sweepFlag = false;
+    let sweepFlag = 0;
 
     if (coordinateTracker.has(coordKey)) {
       // Second time seeing this coordinate, set sweepFlag to 1
       // so the semicircle is drawn in the opposite orientation
-      sweepFlag = true;
+      sweepFlag = 1;
     } else {
       coordinateTracker.add(coordKey);
     }
@@ -116,15 +116,15 @@ const SensorPath = React.memo(function SensorPath({
 });
 
 const Sensor = ({
-  sensorData: { num_measurements, channel, x, y, radius, sweepFlag, rotationAngle, sensorLink, fillColor },
+  sensorData: { measurements, channel, x, y, radius, sweepFlag, rotationAngle, sensorLink, fillColor },
 }: {
   sensorData: {
-    num_measurements: number;
+    measurements: number[];
     channel: number;
     x: number;
     y: number;
     radius: number;
-    sweepFlag: boolean;
+    sweepFlag: number;
     rotationAngle: number;
     sensorLink: string;
     fillColor: string;
@@ -132,7 +132,7 @@ const Sensor = ({
 }) => {
   const styles = useStyles2(getDetectorStaticStyles());
   const transform = `rotate(${rotationAngle}, ${x}, ${y})`;
-  const dPath = `M ${x - radius} ${y} A ${radius} ${radius} 0 0 ${sweepFlag ? 1 : 0} ${x + radius} ${y} L ${x} ${y} Z`;
+  const dPath = `M ${x - radius} ${y} A ${radius} ${radius} 0 0 ${sweepFlag} ${x + radius} ${y} L ${x} ${y} Z`;
 
   const [isHovered, setIsHovered] = useState(false);
   const handleMouseEnter = () => {
@@ -142,32 +142,39 @@ const Sensor = ({
     setIsHovered(false);
   };
 
-  // TODO: Hover text placement should be based on detector boundaries (specific detector shape)
+  const num_measurements = measurements.length;
+  const isActive = channel < num_measurements;
+  const measurementValue = isActive ? measurements[channel]?.toFixed(2) : null;
+
   const sensorElement = (
     <g onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
       <SensorPath initialFillColor={fillColor} dPath={dPath} transform={transform} />
       {isHovered && (
-        <text x={DETECTOR_EXTENTS.x / 2} y={DETECTOR_EXTENTS.y + 2} textAnchor="middle" className={styles.hoverText}>
+        <text x={DETECTOR_EXTENTS.x / 2} y={DETECTOR_EXTENTS.y + 12.5} textAnchor="middle" className={styles.hoverText}>
           Channel: {channel}
+          <tspan className={styles.inactiveStatus}>
+            {isActive ? <tspan style={{ fill: fillColor }}>{` (${measurementValue})`}</tspan> : ' (Inactive)'}
+          </tspan>
         </text>
       )}
     </g>
   );
 
-  const isActive = channel < num_measurements;
-  if (isActive) {
-    return (
-      <a key={`sensor-${channel}`} href={sensorLink} target="_blank" rel="noreferrer">
-        {sensorElement}
-      </a>
-    );
-  }
+  // TODO: This no longer works. Might be fixable but not sure if it is necessary
+  // if (isActive) {
+  //   return (
+  //     <a key={`sensor-${channel}`} href={sensorLink} target="_blank" rel="noreferrer">
+  //       {sensorElement}
+  //     </a>
+  //   );
+  // }
+
   return sensorElement;
 };
 
 export const generateSensorElements = (
   scaledMapping: Array<[number, number, number, number]>,
-  sweepFlags: boolean[],
+  sweepFlags: number[],
   paddedSensorIds: string[],
   measurements: number[],
   radius: number,
@@ -189,7 +196,7 @@ export const generateSensorElements = (
       <Sensor
         key={`sensor-${channel}`}
         sensorData={{
-          num_measurements: measurements.length,
+          measurements,
           channel,
           x,
           y,

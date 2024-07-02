@@ -1,12 +1,12 @@
 import { css } from '@emotion/css';
-import React from 'react';
+import React, { useCallback } from 'react';
 
 import { GrafanaTheme2 } from '@grafana/data';
 import { getTemplateSrv } from '@grafana/runtime';
-import { ResourceDimensionConfig } from '@grafana/schema';
+import { ScalarDimensionConfig } from '@grafana/schema';
 import { usePanelContext, useStyles2 } from '@grafana/ui';
 import { DimensionContext } from 'app/features/dimensions';
-import { ResourceDimensionEditor } from 'app/features/dimensions/editors';
+import { ScalarFieldDimensionEditor } from 'app/features/dimensions/editors';
 
 import { CanvasElementItem, CanvasElementOptions, CanvasElementProps } from '../../element';
 
@@ -38,11 +38,11 @@ interface DetectorMappingConfig {
   channelMappingInput: string;
   paddedSensorIds: string[];
   scaledMapping: Array<[number, number, number, number]>;
-  sweepFlags: boolean[];
+  sweepFlags: number[];
 }
 
 export interface DetectorConfig {
-  measurements?: ResourceDimensionConfig;
+  measurements?: ScalarDimensionConfig;
   baseURL?: string;
   channelMappingInput?: string;
   detectorType: DetectorType;
@@ -59,6 +59,14 @@ const DetectorDisplay = (props: CanvasElementProps<DetectorConfig, DetectorData>
   const context = usePanelContext();
   const scene = context.instanceState?.scene;
   const isPanelEditing = scene?.isPanelEditing || false;
+  const isClickable = !isPanelEditing && !!data?.baseURL;
+
+  const handleClick = useCallback(() => {
+    if (!isPanelEditing && data?.baseURL) {
+      const url = `${data.baseURL}&var-datastream=${data.datastream}&var-attribute=${data.attribute}`;
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+  }, [data?.baseURL, data?.datastream, data?.attribute, isPanelEditing]);
 
   return data ? (
     <svg
@@ -66,6 +74,8 @@ const DetectorDisplay = (props: CanvasElementProps<DetectorConfig, DetectorData>
       viewBox={`-10 -10 ${DETECTOR_LAYOUT.VIEWBOX.WIDTH} ${DETECTOR_LAYOUT.VIEWBOX.HEIGHT}`}
       fill="none"
       preserveAspectRatio="xMidYMid meet"
+      onClick={isClickable ? handleClick : undefined}
+      style={{ cursor: isClickable ? 'pointer' : 'default' }}
     >
       <g className={staticStyles.outline}>
         <ColorbarDisplay
@@ -136,7 +146,7 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
 
     const config = cfg.config;
 
-    const measurements = (config.measurements && ctx.getResource(config.measurements).field?.values) || [];
+    const measurements = (config.measurements && ctx.getScalar(config.measurements).field?.values) || [];
     const radius = config.radius;
     const colorBar = config.colorBar;
     const baseURL = config.baseURL || '';
@@ -218,7 +228,7 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
         path: 'config.measurements',
         name: 'Measurements',
         description: 'Select a field for the channel measurements.',
-        editor: ResourceDimensionEditor,
+        editor: ScalarFieldDimensionEditor,
       })
       // Rotation should be fixed in initial svg generation?
       .addTextInput({
@@ -226,7 +236,7 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
         id: 'channel_mapping_input',
         path: 'config.channelMappingInput',
         name: 'Channel Mapping Input',
-        description: 'Input channel mapping in the format: channel x y.',
+        description: 'Input channel mapping in the format: channel x y rotation.',
       })
       .addTextInput({
         category,
@@ -277,5 +287,13 @@ export const getDetectorStaticStyles = () => (theme: GrafanaTheme2) => ({
     fill: theme.colors.text.primary,
     strokeWidth: theme.spacing(0.01),
     textShadow: `1px 1px 2px ${theme.colors.background.canvas}`,
+  }),
+  activeStatus: css({
+    fill: theme.colors.success.text,
+    fontWeight: theme.typography.fontWeightMedium,
+  }),
+  inactiveStatus: css({
+    fill: theme.colors.error.text,
+    fontWeight: theme.typography.fontWeightMedium,
   }),
 });
