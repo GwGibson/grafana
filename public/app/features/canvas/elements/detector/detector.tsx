@@ -1,5 +1,5 @@
 import { css } from '@emotion/css';
-import React, { useCallback } from 'react';
+import React from 'react';
 
 import { GrafanaTheme2 } from '@grafana/data';
 import { getTemplateSrv } from '@grafana/runtime';
@@ -25,8 +25,8 @@ export interface DetectorData {
   attribute: string;
   normalized: boolean;
   colorBar: ColorBar;
-  colorBarMin: number;
-  colorBarMax: number;
+  minMeasurement: number;
+  maxMeasurement: number;
 }
 
 export enum DetectorType {
@@ -59,14 +59,6 @@ const DetectorDisplay = (props: CanvasElementProps<DetectorConfig, DetectorData>
   const context = usePanelContext();
   const scene = context.instanceState?.scene;
   const isPanelEditing = scene?.isPanelEditing || false;
-  const isClickable = !isPanelEditing && !!data?.baseURL;
-
-  const handleClick = useCallback(() => {
-    if (!isPanelEditing && data?.baseURL) {
-      const url = `${data.baseURL}&var-datastream=${data.datastream}&var-attribute=${data.attribute}`;
-      window.open(url, '_blank', 'noopener,noreferrer');
-    }
-  }, [data?.baseURL, data?.datastream, data?.attribute, isPanelEditing]);
 
   return data ? (
     <svg
@@ -74,8 +66,6 @@ const DetectorDisplay = (props: CanvasElementProps<DetectorConfig, DetectorData>
       viewBox={`-10 -10 ${DETECTOR_LAYOUT.VIEWBOX.WIDTH} ${DETECTOR_LAYOUT.VIEWBOX.HEIGHT}`}
       fill="none"
       preserveAspectRatio="xMidYMid meet"
-      onClick={isClickable ? handleClick : undefined}
-      style={{ cursor: isClickable ? 'pointer' : 'default' }}
     >
       <g className={staticStyles.outline}>
         <ColorbarDisplay
@@ -102,7 +92,7 @@ const DetectorDisplay = (props: CanvasElementProps<DetectorConfig, DetectorData>
 const DEFAULT_DETECTOR_SETTINGS = {
   TYPE: DetectorType.Ccat,
   COLORBAR: ColorBar.coolwarm,
-  RADIUS: 4,
+  RADIUS: 4, // TODO: Should be compile time constant unique to detector sub types
 } as const;
 
 export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
@@ -139,8 +129,8 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
         datastream: '',
         attribute: '',
         normalized: false,
-        colorBarMin: 0,
-        colorBarMax: 0,
+        minMeasurement: 0,
+        maxMeasurement: 0,
       };
     }
 
@@ -156,10 +146,10 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
     const normalized = ((value) => value === 'true' || value === '$normalized')(
       getTemplateSrv().replace('$normalized')
     );
-    const colorBarMin = ((value) => (!isNaN(parseFloat(value)) ? parseFloat(value) : 0))(
+    const minMeasurement = ((value) => (!isNaN(parseFloat(value)) ? parseFloat(value) : 0))(
       getTemplateSrv().replace('$minimum')
     );
-    const colorBarMax = ((value) => (!isNaN(parseFloat(value)) ? parseFloat(value) : 0))(
+    const maxMeasurement = ((value) => (!isNaN(parseFloat(value)) ? parseFloat(value) : 0))(
       getTemplateSrv().replace('$maximum')
     );
 
@@ -173,8 +163,8 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
       datastream,
       attribute,
       normalized,
-      colorBarMin,
-      colorBarMax
+      minMeasurement,
+      maxMeasurement
     );
 
     return {
@@ -187,8 +177,8 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
       datastream,
       attribute,
       normalized,
-      colorBarMin,
-      colorBarMax,
+      minMeasurement,
+      maxMeasurement,
     };
   },
 

@@ -91,10 +91,11 @@ const generateSensorLink = (
   paddedIds: string | any[],
   index: number,
   datastream: string,
-  attribute: string
+  attribute: string,
+  normalized: string
 ): string => {
   const channel = index < paddedIds.length ? `channel_${paddedIds[index]}` : 'All';
-  return `${baseURL}&var-channel=${channel}&var-datastream=${datastream}&var-attribute=${attribute}`;
+  return `${baseURL}&var-channel=${channel}&var-datastream=${datastream}&var-attribute=${attribute}&var-normalized=${normalized}`;
 };
 
 const SensorPath = React.memo(function SensorPath({
@@ -116,7 +117,7 @@ const SensorPath = React.memo(function SensorPath({
 });
 
 const Sensor = ({
-  sensorData: { measurements, channel, x, y, radius, sweepFlag, rotationAngle, sensorLink, fillColor },
+  sensorData: { measurements, channel, x, y, radius, sweepFlag, rotationAngle, sensorLink, fillColor, textFillColor },
 }: {
   sensorData: {
     measurements: number[];
@@ -128,6 +129,7 @@ const Sensor = ({
     rotationAngle: number;
     sensorLink: string;
     fillColor: string;
+    textFillColor: string;
   };
 }) => {
   const styles = useStyles2(getDetectorStaticStyles());
@@ -153,21 +155,20 @@ const Sensor = ({
         <text x={DETECTOR_EXTENTS.x / 2} y={DETECTOR_EXTENTS.y + 12.5} textAnchor="middle" className={styles.hoverText}>
           Channel: {channel}
           <tspan className={styles.inactiveStatus}>
-            {isActive ? <tspan style={{ fill: fillColor }}>{` (${measurementValue})`}</tspan> : ' (Inactive)'}
+            {isActive ? <tspan style={{ fill: textFillColor }}>{` (${measurementValue})`}</tspan> : ' (Inactive)'}
           </tspan>
         </text>
       )}
     </g>
   );
 
-  // TODO: This no longer works. Might be fixable but not sure if it is necessary
-  // if (isActive) {
-  //   return (
-  //     <a key={`sensor-${channel}`} href={sensorLink} target="_blank" rel="noreferrer">
-  //       {sensorElement}
-  //     </a>
-  //   );
-  // }
+  if (isActive) {
+    return (
+      <a key={`sensor-${channel}`} href={sensorLink} target="_blank" rel="noreferrer">
+        {sensorElement}
+      </a>
+    );
+  }
 
   return sensorElement;
 };
@@ -183,15 +184,21 @@ export const generateSensorElements = (
   datastream: string,
   attribute: string,
   normalized: boolean,
-  colorBarMin: number,
-  colorBarMax: number
+  minMeasurement: number,
+  maxMeasurement: number
 ) => {
+  // TODO: Can upload scaled min/max to db or should scaling be done here?
+  // This seems like a good idea but how do we get the min/max values for each channel?
+  // Good idea because writing non-normalized and normalized values to the db is slow
+  // but writing non-normalized + min/max is probably slower
+  const [minValue, maxValue] = normalized ? [-1, 1] : [minMeasurement, maxMeasurement];
   return scaledMapping.map(([channel, x, y, rotationAngle], index) => {
     const sweepFlag = sweepFlags[index];
-    const fillColor = normalized
-      ? getColor(measurements, channel, colorBar)
-      : getColor(measurements, channel, colorBar, colorBarMin, colorBarMax);
-
+    const [fillColor, textFillColor] = [false, true].map((isText) =>
+      // Out of range factor will be 1 when we are coloring the text and 5 when coloring the sensors
+      // and only used for normalized measurements
+      getColor(measurements, channel, colorBar, minValue, maxValue, normalized, isText ? 1 : 5)
+    );
     return (
       <Sensor
         key={`sensor-${channel}`}
@@ -203,8 +210,16 @@ export const generateSensorElements = (
           radius,
           sweepFlag,
           rotationAngle,
-          sensorLink: generateSensorLink(baseURL, paddedSensorIds, channel, datastream, attribute),
+          sensorLink: generateSensorLink(
+            baseURL,
+            paddedSensorIds,
+            channel,
+            datastream,
+            attribute,
+            normalized ? 'true' : 'false'
+          ),
           fillColor,
+          textFillColor,
         }}
       />
     );
@@ -220,8 +235,8 @@ export const generateSensorElementsFromConfig = (
   datastream: string,
   attribute: string,
   normalized: boolean,
-  colorBarMin: number,
-  colorBarMax: number
+  minMeasurement: number,
+  maxMeasurement: number
 ) => {
   // Retrieve current and last input for comparison
   // Will need to update these if there is a change
@@ -271,7 +286,7 @@ export const generateSensorElementsFromConfig = (
     datastream,
     attribute,
     normalized,
-    colorBarMin,
-    colorBarMax
+    minMeasurement,
+    maxMeasurement
   );
 };

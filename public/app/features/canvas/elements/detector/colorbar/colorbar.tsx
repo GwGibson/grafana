@@ -20,8 +20,10 @@ export const getColor = (
   measurements: number[],
   index: number,
   colorBarType: ColorBar,
-  colorBarMin = -1,
-  colorBarMax = 1
+  colorBarMin: number,
+  colorBarMax: number,
+  allowOutOfRange: boolean,
+  outOfRangeFactor: number
 ): string => {
   const scheme = colorBarMap[colorBarType];
   if (index >= measurements.length || index < 0) {
@@ -29,12 +31,12 @@ export const getColor = (
   }
   const measurement = measurements[index];
   if (measurement < colorBarMin) {
-    // return scheme.lowColor;
-    return scheme.colors[0];
+    return allowOutOfRange && measurement < colorBarMin / outOfRangeFactor ? scheme.lowColor : scheme.colors[0];
   }
   if (measurement > colorBarMax) {
-    // return scheme.highColor;
-    return scheme.colors[COLOR_SCALE_SIZE - 1];
+    return allowOutOfRange && measurement > colorBarMax * outOfRangeFactor
+      ? scheme.highColor
+      : scheme.colors[COLOR_SCALE_SIZE - 1];
   }
   // Normalize the measurement value to [0, 1]
   const normalizedMeasurement = (measurement - colorBarMin) / (colorBarMax - colorBarMin);
@@ -59,52 +61,37 @@ export const ColorbarDisplay: React.FC<ColorbarDisplayProps> = ({ data, dimensio
   const styles = useStyles2(getColorBarStyles());
   const { colors, highColor, lowColor } = scheme;
 
-  /*
-  const mainColorBarHeight = dimensions.height * 0.8; // 80% of the total height for main colorbar
+  const mainColorBarHeight = dimensions.height * 0.875; // 80% of the total height for main colorbar
   const indicatorHeight = dimensions.height * 0.05; // 5% for each of the high and low indicators
   const colorBarWidth = dimensions.width * 0.75;
   const gradientId = `gradient-${isPanelEditing ? 'edit' : 'view'}-${data.colorBar}`;
 
-  const [absMin, validMin, validMax, absMax] = data.normalized
-    ? formatToExponential([0, -1, 1, 0])
-    : formatToExponential([-1000, -10, 10, 1000]);
+  const [min, max] = data.normalized ? [-1.0, 1.0] : formatRange([data.minMeasurement, data.maxMeasurement]);
 
-  const textElements = [
-    { x: dimensions.x + colorBarWidth / 2, y: dimensions.y + indicatorHeight / 2, value: absMax, anchor: 'middle' },
-    { x: dimensions.x + colorBarWidth, y: dimensions.y + indicatorHeight * 2, value: validMax, anchor: 'left' },
+  const textElements: Array<{
+    x: number;
+    y: number;
+    value: number | string;
+    textAnchor: 'start' | 'middle' | 'end';
+    alignmentBaseline: 'baseline' | 'middle' | 'hanging';
+  }> = [
     {
-      x: dimensions.x + colorBarWidth,
-      y: dimensions.y + indicatorHeight * 2 + mainColorBarHeight,
-      value: validMin,
-      anchor: 'left',
+      x: dimensions.x + colorBarWidth / 2,
+      y: dimensions.y + indicatorHeight * 1.75,
+      value: max,
+      textAnchor: 'middle',
+      alignmentBaseline: 'baseline',
     },
     {
       x: dimensions.x + colorBarWidth / 2,
-      y: dimensions.y + indicatorHeight * 3.5 + mainColorBarHeight,
-      value: absMin,
-      anchor: 'middle',
-    },
-  ];
-  */
-
-  const mainColorBarHeight = dimensions.height * 0.95;
-  const colorBarWidth = dimensions.width * 0.75;
-  const gradientId = `gradient-${isPanelEditing ? 'edit' : 'view'}-${data.colorBar}`;
-
-  const [absMin, _validMin, _validMax, absMax] = data.normalized
-    ? [-1.0, 0.0, 0.0, 1.0]
-    : formatRange([data.colorBarMin, 0, 0, data.colorBarMax]);
-
-  const textElements = [
-    { x: dimensions.x + colorBarWidth / 2, y: dimensions.y, value: absMax, anchor: 'middle' },
-    {
-      x: dimensions.x + colorBarWidth / 2,
-      y: dimensions.y + dimensions.height,
-      value: absMin,
-      anchor: 'middle',
+      y: dimensions.y + indicatorHeight * 2.2 + mainColorBarHeight,
+      value: min,
+      textAnchor: 'middle',
+      alignmentBaseline: 'hanging',
     },
   ];
 
+  // Should only display the high and low indicators if data.normalized is true
   return (
     <g className={styles.outline}>
       <defs>
@@ -114,17 +101,42 @@ export const ColorbarDisplay: React.FC<ColorbarDisplayProps> = ({ data, dimensio
           ))}
         </linearGradient>
       </defs>
+
+      {/* High color indicator */}
+      {data.normalized && (
+        <rect x={dimensions.x} y={dimensions.y} width={colorBarWidth} height={indicatorHeight} fill={highColor} />
+      )}
+
       {/* Main color bar in the middle */}
       <rect
         x={dimensions.x}
-        y={dimensions.y + (dimensions.height - mainColorBarHeight) / 2}
+        y={dimensions.y + indicatorHeight * 2}
         width={colorBarWidth}
         height={mainColorBarHeight}
         fill={`url(#${gradientId})`}
       />
+
+      {/* Low color indicator */}
+      {data.normalized && (
+        <rect
+          x={dimensions.x}
+          y={dimensions.y + indicatorHeight * 3 + mainColorBarHeight}
+          width={colorBarWidth}
+          height={indicatorHeight}
+          fill={lowColor}
+        />
+      )}
+
       {/* Rendering text elements iteratively */}
       {textElements.map((text, index) => (
-        <text key={index} x={text.x} y={text.y} className={styles.textStyle} textAnchor={text.anchor}>
+        <text
+          key={index}
+          x={text.x}
+          y={text.y}
+          className={styles.textStyle}
+          textAnchor={text.textAnchor}
+          alignmentBaseline={text.alignmentBaseline}
+        >
           {text.value}
         </text>
       ))}
@@ -133,9 +145,9 @@ export const ColorbarDisplay: React.FC<ColorbarDisplayProps> = ({ data, dimensio
 };
 
 // TODO: Not sure we still need four elements in the array
-const formatRange = (colorBarRange: number[], numDecimalPlaces = 3): [string, string, string, string] => {
+const formatRange = (colorBarRange: number[], numDecimalPlaces = 3): [string, string] => {
   // Ensure the array has exactly four elements, fill missing ones with 0
-  const safeRange = [...colorBarRange.slice(0, 4), 0, 0, 0, 0].slice(0, 4);
+  const safeRange = [...colorBarRange.slice(0, 2), 0, 0].slice(0, 2);
   return safeRange.map((value) => {
     // Display in exponential form if the number is less than 1 and not zero or if the abs value is >= 10
     if ((Math.abs(value) < 1 && value !== 0) || Math.abs(value) >= 10) {
@@ -143,7 +155,7 @@ const formatRange = (colorBarRange: number[], numDecimalPlaces = 3): [string, st
     } else {
       return value.toFixed(numDecimalPlaces);
     }
-  }) as [string, string, string, string];
+  }) as [string, string];
 };
 
 const getColorBarStyles = () => (theme: GrafanaTheme2) => ({
@@ -157,7 +169,6 @@ const getColorBarStyles = () => (theme: GrafanaTheme2) => ({
     fill: theme.colors.text.primary,
     fontSize: theme.typography.bodySmall.fontSize,
     fontFamily: theme.typography.fontFamilyMonospace,
-    alignmentBaseline: 'middle',
   }),
 });
 
