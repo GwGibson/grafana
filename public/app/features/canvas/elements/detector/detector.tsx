@@ -1,7 +1,7 @@
 import { css } from '@emotion/css';
 import React from 'react';
 
-import { GrafanaTheme2 } from '@grafana/data';
+import { GrafanaTheme2, PanelOptionsEditorBuilder } from '@grafana/data';
 import { getTemplateSrv } from '@grafana/runtime';
 import { ScalarDimensionConfig } from '@grafana/schema';
 import { usePanelContext, useStyles2 } from '@grafana/ui';
@@ -11,9 +11,10 @@ import { ScalarFieldDimensionEditor } from 'app/features/dimensions/editors';
 import { CanvasElementItem, CanvasElementOptions, CanvasElementProps } from '../../element';
 
 import { colorBarMap, ColorBar, ColorbarDisplay } from './colorbar/colorbar';
+import { DetectorNetworkEditor } from './detector-editors/detectorNetworkEditor';
 import { DETECTOR_EXTENTS, DETECTOR_LAYOUT } from './detectorLayout';
 import { generateSensorElementsFromConfig } from './detectorUtils';
-import { DetectorBLAST, DetectorCCAT } from './types';
+import { BLAST_NETWORKS, DetectorBLAST, DetectorPRIMECAM280, PRIMECAM280_NETWORKS } from './types';
 
 export interface DetectorData {
   measurements: number[];
@@ -31,7 +32,7 @@ export interface DetectorData {
 
 export enum DetectorType {
   Blast = 'BLAST',
-  Ccat = 'PRIME CAM ?hz',
+  PrimeCam280 = 'PRIMECAM-280',
 }
 
 interface DetectorMappingConfig {
@@ -50,6 +51,7 @@ export interface DetectorConfig {
   radius: number;
   colorBar: ColorBar;
   lastMappingConfigs: DetectorMappingConfig;
+  networks: string[];
 }
 
 const DetectorDisplay = (props: CanvasElementProps<DetectorConfig, DetectorData>) => {
@@ -80,8 +82,8 @@ const DetectorDisplay = (props: CanvasElementProps<DetectorConfig, DetectorData>
         />
         {data && data.detectorType === DetectorType.Blast ? (
           <DetectorBLAST data={data} extents={DETECTOR_EXTENTS} />
-        ) : data && data.detectorType === DetectorType.Ccat ? (
-          <DetectorCCAT data={data} extents={DETECTOR_EXTENTS} />
+        ) : data && data.detectorType === DetectorType.PrimeCam280 ? (
+          <DetectorPRIMECAM280 data={data} extents={DETECTOR_EXTENTS} />
         ) : null}
         <g className={dynamicStyles.sensor}>{data && data.sensors}</g>
       </g>
@@ -89,11 +91,17 @@ const DetectorDisplay = (props: CanvasElementProps<DetectorConfig, DetectorData>
   ) : null;
 };
 
-const DEFAULT_DETECTOR_SETTINGS = {
-  TYPE: DetectorType.Ccat,
+export const DEFAULT_DETECTOR_SETTINGS = {
+  TYPE: DetectorType.PrimeCam280,
   COLORBAR: ColorBar.coolwarm,
   RADIUS: 4, // TODO: Should be compile time constant unique to detector sub types
 } as const;
+
+// TODO: Put this somewhere else and import it?
+export const DETECTOR_NETWORKS: Record<DetectorType, string[]> = {
+  [DetectorType.PrimeCam280]: PRIMECAM280_NETWORKS,
+  [DetectorType.Blast]: BLAST_NETWORKS,
+};
 
 export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
   id: 'detector',
@@ -113,6 +121,7 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
       colorBar: DEFAULT_DETECTOR_SETTINGS.COLORBAR,
       radius: DEFAULT_DETECTOR_SETTINGS.RADIUS,
       lastMappingConfigs: { channelMappingInput: '', paddedSensorIds: [], scaledMapping: [], sweepFlags: [] },
+      networks: DETECTOR_NETWORKS[DEFAULT_DETECTOR_SETTINGS.TYPE],
     },
   }),
 
@@ -141,6 +150,9 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
     const colorBar = config.colorBar;
     const baseURL = config.baseURL || '';
     const detectorType = config.detectorType;
+    // TODO: Pass into sensor element config to display only chosen networks
+    // TODO: Do the same thing with hexagons -> need to match hexagons with networks
+    const selectedNetworks = config?.networks || [];
     const datastream = ((value) => (value !== '$datastream' ? value : ''))(getTemplateSrv().replace('$datastream'));
     const attribute = ((value) => (value !== '$attribute' ? value : ''))(getTemplateSrv().replace('$attribute'));
     const normalized = ((value) => value === 'true' || value === '$normalized')(
@@ -182,20 +194,20 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
     };
   },
 
-  registerOptionsUI: (builder: any) => {
+  registerOptionsUI: (builder: PanelOptionsEditorBuilder<CanvasElementOptions<DetectorConfig>>) => {
     const category = ['Detector'];
     builder
       .addSelect({
         category,
         path: 'config.detectorType',
-        name: 'Detector Type',
+        name: 'Type',
         settings: {
           options: [
             { value: DetectorType.Blast, label: DetectorType.Blast },
-            { value: DetectorType.Ccat, label: DetectorType.Ccat },
+            { value: DetectorType.PrimeCam280, label: DetectorType.PrimeCam280 },
           ],
         },
-        defaultValue: DetectorType.Ccat,
+        defaultValue: DetectorType.PrimeCam280,
       })
       .addSelect({
         category,
@@ -223,14 +235,12 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
       // Rotation should be fixed in initial svg generation?
       .addTextInput({
         category,
-        id: 'channel_mapping_input',
         path: 'config.channelMappingInput',
         name: 'Channel Mapping Input',
         description: 'Input channel mapping in the format: channel x y rotation.',
       })
       .addTextInput({
         category,
-        id: 'base_url',
         path: 'config.baseURL',
         name: 'Base URL',
         description: 'Input the base URL to the time series panel.',
@@ -242,6 +252,15 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
         settings: {
           placeholder: '1',
         },
+      })
+      .addCustomEditor({
+        category,
+        id: 'networks',
+        path: 'config.networks',
+        name: 'Networks',
+        description: 'Select networks to display',
+        editor: DetectorNetworkEditor,
+        defaultValue: ['all'],
       });
   },
 };

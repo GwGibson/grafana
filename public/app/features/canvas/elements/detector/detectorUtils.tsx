@@ -195,9 +195,9 @@ export const generateSensorElements = (
   return scaledMapping.map(([channel, x, y, rotationAngle], index) => {
     const sweepFlag = sweepFlags[index];
     const [fillColor, textFillColor] = [false, true].map((isText) =>
-      // Out of range factor will be 1 when we are coloring the text and 5 when coloring the sensors
+      // Out of range factor will be 1 when we are coloring the text and 8 when coloring the sensors
       // and only used for normalized measurements
-      getColor(measurements, channel, colorBar, minValue, maxValue, normalized, isText ? 1 : 5)
+      getColor(measurements, channel, colorBar, minValue, maxValue, normalized, isText ? 1 : 8)
     );
     return (
       <Sensor

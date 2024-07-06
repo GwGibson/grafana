@@ -30,8 +30,11 @@ export const getColor = (
     return scheme.invalidColor;
   }
   const measurement = measurements[index];
+  // Assuming colorBarMin is -1 and colorBarMax is 1 here!
+  // This may not work properly if the normalized min and max are changed.
+  // Non normalized measurements should not be subject to out of range coloring.
   if (measurement < colorBarMin) {
-    return allowOutOfRange && measurement < colorBarMin / outOfRangeFactor ? scheme.lowColor : scheme.colors[0];
+    return allowOutOfRange && measurement < colorBarMin * outOfRangeFactor ? scheme.lowColor : scheme.colors[0];
   }
   if (measurement > colorBarMax) {
     return allowOutOfRange && measurement > colorBarMax * outOfRangeFactor
