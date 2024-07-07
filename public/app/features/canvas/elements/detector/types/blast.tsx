@@ -7,6 +7,7 @@ import { DetectorDisplayProps } from '../detectorLayout';
 
 import { createHexagonComponent } from './utils';
 
+export const BLAST_ARRAYS = ['Array 1'];
 export const BLAST_NETWORKS = ['Network 1'];
 
 export const DetectorBLAST: React.FC<DetectorDisplayProps> = ({ data, extents }) => {

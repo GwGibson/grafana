@@ -11,10 +11,10 @@ import { ScalarFieldDimensionEditor } from 'app/features/dimensions/editors';
 import { CanvasElementItem, CanvasElementOptions, CanvasElementProps } from '../../element';
 
 import { colorBarMap, ColorBar, ColorbarDisplay } from './colorbar/colorbar';
-import { DetectorNetworkEditor } from './detector-editors/detectorNetworkEditor';
+import { allValue, DetectorArrayEditor, DetectorNetworkEditor } from './detector-editors/detectorEditors';
 import { DETECTOR_EXTENTS, DETECTOR_LAYOUT } from './detectorLayout';
 import { generateSensorElementsFromConfig } from './detectorUtils';
-import { BLAST_NETWORKS, DetectorBLAST, DetectorPRIMECAM280, PRIMECAM280_NETWORKS } from './types';
+import * as Types from './types';
 
 export interface DetectorData {
   measurements: number[];
@@ -51,6 +51,7 @@ export interface DetectorConfig {
   radius: number;
   colorBar: ColorBar;
   lastMappingConfigs: DetectorMappingConfig;
+  arrays: string[];
   networks: string[];
 }
 
@@ -81,9 +82,9 @@ const DetectorDisplay = (props: CanvasElementProps<DetectorConfig, DetectorData>
           isPanelEditing={isPanelEditing}
         />
         {data && data.detectorType === DetectorType.Blast ? (
-          <DetectorBLAST data={data} extents={DETECTOR_EXTENTS} />
+          <Types.DetectorBLAST data={data} extents={DETECTOR_EXTENTS} />
         ) : data && data.detectorType === DetectorType.PrimeCam280 ? (
-          <DetectorPRIMECAM280 data={data} extents={DETECTOR_EXTENTS} />
+          <Types.DetectorPRIMECAM280 data={data} extents={DETECTOR_EXTENTS} />
         ) : null}
         <g className={dynamicStyles.sensor}>{data && data.sensors}</g>
       </g>
@@ -97,10 +98,15 @@ export const DEFAULT_DETECTOR_SETTINGS = {
   RADIUS: 4, // TODO: Should be compile time constant unique to detector sub types
 } as const;
 
-// TODO: Put this somewhere else and import it?
+// TODO: Put these somewhere else and import them?
 export const DETECTOR_NETWORKS: Record<DetectorType, string[]> = {
-  [DetectorType.PrimeCam280]: PRIMECAM280_NETWORKS,
-  [DetectorType.Blast]: BLAST_NETWORKS,
+  [DetectorType.PrimeCam280]: Types.PRIMECAM280_NETWORKS,
+  [DetectorType.Blast]: Types.BLAST_NETWORKS,
+};
+
+export const DETECTOR_ARRAYS: Record<DetectorType, string[]> = {
+  [DetectorType.PrimeCam280]: Types.PRIMECAM280_ARRAYS,
+  [DetectorType.Blast]: Types.BLAST_ARRAYS,
 };
 
 export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
@@ -121,6 +127,7 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
       colorBar: DEFAULT_DETECTOR_SETTINGS.COLORBAR,
       radius: DEFAULT_DETECTOR_SETTINGS.RADIUS,
       lastMappingConfigs: { channelMappingInput: '', paddedSensorIds: [], scaledMapping: [], sweepFlags: [] },
+      arrays: DETECTOR_ARRAYS[DEFAULT_DETECTOR_SETTINGS.TYPE],
       networks: DETECTOR_NETWORKS[DEFAULT_DETECTOR_SETTINGS.TYPE],
     },
   }),
@@ -150,9 +157,10 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
     const colorBar = config.colorBar;
     const baseURL = config.baseURL || '';
     const detectorType = config.detectorType;
-    // TODO: Pass into sensor element config to display only chosen networks
-    // TODO: Do the same thing with hexagons -> need to match hexagons with networks
+    // TODO: Pass into sensor element config to display only chosen arrays/networks
+    const selectedArrays = config?.arrays || [];
     const selectedNetworks = config?.networks || [];
+    console.log(selectedArrays, selectedNetworks);
     const datastream = ((value) => (value !== '$datastream' ? value : ''))(getTemplateSrv().replace('$datastream'));
     const attribute = ((value) => (value !== '$attribute' ? value : ''))(getTemplateSrv().replace('$attribute'));
     const normalized = ((value) => value === 'true' || value === '$normalized')(
@@ -255,12 +263,21 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
       })
       .addCustomEditor({
         category,
+        id: 'arrays',
+        path: 'config.arrays',
+        name: 'Array',
+        description: 'Select arrays to display',
+        editor: DetectorArrayEditor,
+        defaultValue: [allValue],
+      })
+      .addCustomEditor({
+        category,
         id: 'networks',
         path: 'config.networks',
         name: 'Networks',
         description: 'Select networks to display',
         editor: DetectorNetworkEditor,
-        defaultValue: ['all'],
+        defaultValue: [allValue],
       });
   },
 };
