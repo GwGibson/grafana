@@ -3,40 +3,46 @@ import React, { useCallback, useMemo } from 'react';
 import { SelectableValue, StandardEditorContext, StandardEditorProps } from '@grafana/data';
 import { MultiSelect } from '@grafana/ui';
 
-import { DETECTOR_ARRAYS, DETECTOR_NETWORKS, DetectorConfig, DetectorType } from '../detector';
+import { DetectorConfig } from './detector';
+import { DetectorType, getArraysForDetector, getNetworksForDetectorArrays, MAX_NETWORK_VALUES } from './types/configs';
 
-// Have these here since they are specific to Detector components and not general purpose editors.
+// Have these editors here as they are Detector specific and not generalized.
 
 type DetectorComponent = 'network' | 'array';
 
-interface DetectorComponentSelectorProps<T extends DetectorComponent> {
+interface DetectorComponentSelectorProps {
   value: string[];
   context: StandardEditorContext<DetectorConfig>;
   onChange: (value: string[]) => void;
-  componentType: T;
-  componentMap: Record<DetectorType, string[]>;
+  componentType: DetectorComponent;
   allOptionLabel: string;
 }
 
 export const allValue = 'all';
 
-export const DetectorComponentSelector: React.FC<DetectorComponentSelectorProps<DetectorComponent>> = ({
+export const DetectorComponentSelector: React.FC<DetectorComponentSelectorProps> = ({
   value,
   context,
   onChange,
   componentType,
-  componentMap,
   allOptionLabel,
 }) => {
-  const detectorType =
-    (context.instanceState?.layer?.elements?.[0]?.options?.config?.detectorType as DetectorType) || undefined;
+  const config = context.instanceState?.layer?.elements?.[0]?.options?.config || undefined;
+  const detectorType = config?.detectorType as DetectorType | undefined;
+  const selectedArrays = useMemo(() => config?.arrays || [], [config?.arrays]);
 
   const componentOptions = useMemo(() => {
-    if (detectorType && componentMap[detectorType]) {
-      return componentMap[detectorType].map((component) => ({ label: component, value: component.toLowerCase() }));
+    if (detectorType) {
+      let options: string[];
+      if (componentType === 'array') {
+        options = getArraysForDetector(detectorType);
+      } else {
+        options = getNetworksForDetectorArrays(detectorType, selectedArrays);
+      }
+      return options.map((component: string) => ({ label: component, value: component }));
     }
     return [{ label: allOptionLabel, value: allValue }];
-  }, [detectorType, componentMap, allOptionLabel]);
+  }, [detectorType, componentType, allOptionLabel, selectedArrays]);
 
   const allComponentOption: SelectableValue<string> = useMemo(
     () => ({ label: allOptionLabel, value: allValue }),
@@ -48,7 +54,7 @@ export const DetectorComponentSelector: React.FC<DetectorComponentSelectorProps<
       let selectedValues: string[];
 
       if (selected.some((option) => option.value === allValue)) {
-        selectedValues = componentOptions.map((option) => option.value);
+        selectedValues = componentOptions.map((option: { value: any }) => option.value);
       } else {
         selectedValues = selected.map((option) => option.value!);
       }
@@ -62,9 +68,9 @@ export const DetectorComponentSelector: React.FC<DetectorComponentSelectorProps<
       return [];
     }
     if (value.includes(allValue)) {
-      return componentOptions.map((option) => option.value);
+      return componentOptions.map((option: { value: string }) => option.value);
     }
-    return componentOptions.filter((option) => value.includes(option.value));
+    return componentOptions.filter((option: { value: string }) => value.includes(option.value));
   }, [value, componentOptions, detectorType]);
 
   return (
@@ -74,7 +80,7 @@ export const DetectorComponentSelector: React.FC<DetectorComponentSelectorProps<
       onChange={onSelectionChange}
       placeholder={`Select ${componentType}s`}
       menuPlacement="auto"
-      maxVisibleValues={9}
+      maxVisibleValues={MAX_NETWORK_VALUES}
       closeMenuOnSelect={true}
       isClearable={true}
     />
@@ -82,19 +88,9 @@ export const DetectorComponentSelector: React.FC<DetectorComponentSelectorProps<
 };
 
 export const DetectorNetworkEditor: React.FC<StandardEditorProps<string[], DetectorConfig>> = (props) => (
-  <DetectorComponentSelector
-    {...props}
-    componentType="network"
-    componentMap={DETECTOR_NETWORKS}
-    allOptionLabel="All Networks"
-  />
+  <DetectorComponentSelector {...props} componentType="network" allOptionLabel="All Networks" />
 );
 
 export const DetectorArrayEditor: React.FC<StandardEditorProps<string[], DetectorConfig>> = (props) => (
-  <DetectorComponentSelector
-    {...props}
-    componentType="array"
-    componentMap={DETECTOR_ARRAYS}
-    allOptionLabel="All Arrays"
-  />
+  <DetectorComponentSelector {...props} componentType="array" allOptionLabel="All Sensor Arrays" />
 );

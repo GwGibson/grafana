@@ -11,10 +11,11 @@ import { ScalarFieldDimensionEditor } from 'app/features/dimensions/editors';
 import { CanvasElementItem, CanvasElementOptions, CanvasElementProps } from '../../element';
 
 import { colorBarMap, ColorBar, ColorbarDisplay } from './colorbar/colorbar';
-import { allValue, DetectorArrayEditor, DetectorNetworkEditor } from './detector-editors/detectorEditors';
+import { DetectorArrayEditor, DetectorNetworkEditor } from './detectorEditors';
 import { DETECTOR_EXTENTS, DETECTOR_LAYOUT } from './detectorLayout';
 import { generateSensorElementsFromConfig } from './detectorUtils';
 import * as Types from './types';
+import { DetectorType } from './types/configs';
 
 export interface DetectorData {
   measurements: number[];
@@ -28,11 +29,6 @@ export interface DetectorData {
   colorBar: ColorBar;
   minMeasurement: number;
   maxMeasurement: number;
-}
-
-export enum DetectorType {
-  Blast = 'BLAST',
-  PrimeCam280 = 'PRIMECAM-280',
 }
 
 interface DetectorMappingConfig {
@@ -98,17 +94,6 @@ export const DEFAULT_DETECTOR_SETTINGS = {
   RADIUS: 4, // TODO: Should be compile time constant unique to detector sub types
 } as const;
 
-// TODO: Put these somewhere else and import them?
-export const DETECTOR_NETWORKS: Record<DetectorType, string[]> = {
-  [DetectorType.PrimeCam280]: Types.PRIMECAM280_NETWORKS,
-  [DetectorType.Blast]: Types.BLAST_NETWORKS,
-};
-
-export const DETECTOR_ARRAYS: Record<DetectorType, string[]> = {
-  [DetectorType.PrimeCam280]: Types.PRIMECAM280_ARRAYS,
-  [DetectorType.Blast]: Types.BLAST_ARRAYS,
-};
-
 export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
   id: 'detector',
   name: 'Detector',
@@ -127,8 +112,8 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
       colorBar: DEFAULT_DETECTOR_SETTINGS.COLORBAR,
       radius: DEFAULT_DETECTOR_SETTINGS.RADIUS,
       lastMappingConfigs: { channelMappingInput: '', paddedSensorIds: [], scaledMapping: [], sweepFlags: [] },
-      arrays: DETECTOR_ARRAYS[DEFAULT_DETECTOR_SETTINGS.TYPE],
-      networks: DETECTOR_NETWORKS[DEFAULT_DETECTOR_SETTINGS.TYPE],
+      arrays: [],
+      networks: [],
     },
   }),
 
@@ -160,7 +145,6 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
     // TODO: Pass into sensor element config to display only chosen arrays/networks
     const selectedArrays = config?.arrays || [];
     const selectedNetworks = config?.networks || [];
-    console.log(selectedArrays, selectedNetworks);
     const datastream = ((value) => (value !== '$datastream' ? value : ''))(getTemplateSrv().replace('$datastream'));
     const attribute = ((value) => (value !== '$attribute' ? value : ''))(getTemplateSrv().replace('$attribute'));
     const normalized = ((value) => value === 'true' || value === '$normalized')(
@@ -265,10 +249,10 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
         category,
         id: 'arrays',
         path: 'config.arrays',
-        name: 'Array',
-        description: 'Select arrays to display',
+        name: 'Sensor Arrays',
+        description: 'Select sensor arrays to display',
         editor: DetectorArrayEditor,
-        defaultValue: [allValue],
+        defaultValue: [],
       })
       .addCustomEditor({
         category,
@@ -277,7 +261,7 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
         name: 'Networks',
         description: 'Select networks to display',
         editor: DetectorNetworkEditor,
-        defaultValue: [allValue],
+        defaultValue: [],
       });
   },
 };

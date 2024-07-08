@@ -7,10 +7,6 @@ import { DetectorDisplayProps } from '../detectorLayout';
 
 import { createHexagonComponent, createLineComponents } from './utils';
 
-export const PRIMECAM280_ARRAYS = ['Left AL', 'Right AL', 'SN'];
-// All arrays have six networks, might be a problem if this is not the case.
-export const PRIMECAM280_NETWORKS = ['Network 1', 'Network 2', 'Network 3', 'Network 4', 'Network 5', 'Network 6'];
-
 export const DetectorPRIMECAM280: React.FC<DetectorDisplayProps> = ({ data, extents }) => {
   const styles = useStyles2(getDetectorDataStyles(data));
   const hexagonComponent = useMemo(() => createHexagonComponent(extents, true), [extents]);
