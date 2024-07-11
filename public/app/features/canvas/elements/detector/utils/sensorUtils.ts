@@ -1,8 +1,4 @@
-import React, { useEffect, useState } from 'react';
-
-import { useStyles2 } from '@grafana/ui';
-
-import { DetectorConfig, getDetectorStaticStyles } from '../detector';
+import { DetectorConfig } from '../detector';
 import { DETECTOR_EXTENTS } from '../layout';
 
 export const generateSensorLink = (
