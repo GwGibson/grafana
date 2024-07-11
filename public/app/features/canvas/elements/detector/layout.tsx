@@ -1,5 +1,9 @@
 import { DetectorData } from './detector';
 
+// This file is meant to be a shared file between all detector types
+// that expresses the general layout of the area that will contain
+// the specific detector layout.
+
 export interface DetectorDisplayProps {
   data: DetectorData;
   extents: {
@@ -13,7 +17,7 @@ export interface DetectorDisplayProps {
 // extents as the base and adjust from there.
 
 /**
- * Detector dimensions and layout constants
+ * Common Detector dimensions and layout constants
  */
 export const DETECTOR_LAYOUT: {
   EXTENTS: { X: 400; Y: 400 };
@@ -29,7 +33,7 @@ export const DETECTOR_LAYOUT: {
   };
   VIEWBOX: {
     WIDTH_EXTRA: 120;
-    HEIGHT_EXTRA: 25;
+    HEIGHT_EXTRA: 60;
     readonly WIDTH: number;
     readonly HEIGHT: number;
   };
@@ -54,7 +58,7 @@ export const DETECTOR_LAYOUT: {
   },
   VIEWBOX: {
     WIDTH_EXTRA: 120, // extra width to allow for colorbar
-    HEIGHT_EXTRA: 25, // extra height to allow for channel text
+    HEIGHT_EXTRA: 60, // extra height to allow for channel text
     get WIDTH() {
       return this.WIDTH_EXTRA + DETECTOR_LAYOUT.EXTENTS.X;
     },

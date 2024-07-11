@@ -1,3 +1,7 @@
+import React from 'react';
+
+import { DETECTOR_EXTENTS } from '../layout';
+
 export const createHexagonComponent = (extents: { x: number; y: number }, rotate90 = false) => {
   const hexagonPoints = calculateHexagonalPoints(extents, rotate90);
   const pointsString = hexagonPoints.map((pt) => `${pt.x},${pt.y}`).join(' ');

@@ -1,5 +1,4 @@
 import { css } from '@emotion/css';
-import React from 'react';
 
 import { GrafanaTheme2, PanelOptionsEditorBuilder } from '@grafana/data';
 import { getTemplateSrv } from '@grafana/runtime';
@@ -12,49 +11,66 @@ import { CanvasElementItem, CanvasElementOptions, CanvasElementProps } from '../
 
 import { colorBarMap, ColorBar, ColorbarDisplay } from './colorbar/colorbar';
 import { DetectorArrayEditor, DetectorNetworkEditor } from './detectorEditors';
-import { DETECTOR_EXTENTS, DETECTOR_LAYOUT } from './detectorLayout';
-import { generateSensorElementsFromConfig } from './detectorUtils';
-import * as Types from './types';
-import { DetectorType } from './types/configs';
+import { DETECTOR_EXTENTS, DETECTOR_LAYOUT } from './layout';
+import { DetectorType, DetectorBlast, DetectorPrimeCam280 } from './types';
+import { updateChannelMapping } from './utils/sensorUtils';
 
 export interface DetectorData {
-  measurements: number[];
-  baseURL: string;
-  sensors: React.JSX.Element[];
   detectorType: DetectorType;
-  radius: number;
-  datastream: string;
-  attribute: string;
-  normalized: boolean;
+  measurementData: DetectorMeasurementData;
+  colorData: DetectorColorData;
+  mappingData: DetectorMappingData;
+  variableData: DetectorVariableData;
+}
+
+interface DetectorMeasurementData {
+  measurements: number[];
+  selectedArrays: string[];
+  selectedNetworks: string[];
+}
+
+interface DetectorColorData {
   colorBar: ColorBar;
   minMeasurement: number;
   maxMeasurement: number;
 }
 
-interface DetectorMappingConfig {
-  channelMappingInput: string;
+interface DetectorMappingData {
+  // [channel] -> maps to sensor ids in ascending order
+  channelMapping: number[];
   paddedSensorIds: string[];
-  scaledMapping: Array<[number, number, number, number]>;
-  sweepFlags: number[];
+  baseURL: string;
+}
+
+interface DetectorVariableData {
+  datastream: string;
+  attribute: string;
+  normalized: boolean;
 }
 
 export interface DetectorConfig {
   measurements?: ScalarDimensionConfig;
-  baseURL?: string;
-  channelMappingInput?: string;
-  detectorType: DetectorType;
-  lastDetectorType: DetectorType;
-  radius: number;
-  colorBar: ColorBar;
-  lastMappingConfigs: DetectorMappingConfig;
   arrays: string[];
   networks: string[];
+  baseURL: string;
+  channelMappingInput: string;
+  channelMappingInputHash: string;
+  detectorType: DetectorType;
+  lastDetectorType: DetectorType;
+  colorBar: ColorBar;
+  lastMappingConfigs: DetectorMappingConfig;
+}
+
+interface DetectorMappingConfig {
+  channelMappingInput: string;
+  channelMapping: number[];
+  paddedSensorIds: string[];
 }
 
 const DetectorDisplay = (props: CanvasElementProps<DetectorConfig, DetectorData>) => {
+  // console.log("Detector Display called!");
   const { data } = props;
   const staticStyles = useStyles2(getDetectorStaticStyles());
-  const dynamicStyles = useStyles2(getDetectorDataStyles(data));
   const context = usePanelContext();
   const scene = context.instanceState?.scene;
   const isPanelEditing = scene?.isPanelEditing || false;
@@ -78,11 +94,10 @@ const DetectorDisplay = (props: CanvasElementProps<DetectorConfig, DetectorData>
           isPanelEditing={isPanelEditing}
         />
         {data && data.detectorType === DetectorType.Blast ? (
-          <Types.DetectorBLAST data={data} extents={DETECTOR_EXTENTS} />
+          <DetectorBlast data={data} extents={DETECTOR_EXTENTS} />
         ) : data && data.detectorType === DetectorType.PrimeCam280 ? (
-          <Types.DetectorPRIMECAM280 data={data} extents={DETECTOR_EXTENTS} />
+          <DetectorPrimeCam280 data={data} extents={DETECTOR_EXTENTS} />
         ) : null}
-        <g className={dynamicStyles.sensor}>{data && data.sensors}</g>
       </g>
     </svg>
   ) : null;
@@ -91,7 +106,6 @@ const DetectorDisplay = (props: CanvasElementProps<DetectorConfig, DetectorData>
 export const DEFAULT_DETECTOR_SETTINGS = {
   TYPE: DetectorType.PrimeCam280,
   COLORBAR: ColorBar.coolwarm,
-  RADIUS: 4, // TODO: Should be compile time constant unique to detector sub types
 } as const;
 
 export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
@@ -108,48 +122,60 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
     ...options,
     config: {
       detectorType: DEFAULT_DETECTOR_SETTINGS.TYPE,
-      lastDetectorType: DEFAULT_DETECTOR_SETTINGS.TYPE,
-      colorBar: DEFAULT_DETECTOR_SETTINGS.COLORBAR,
-      radius: DEFAULT_DETECTOR_SETTINGS.RADIUS,
-      lastMappingConfigs: { channelMappingInput: '', paddedSensorIds: [], scaledMapping: [], sweepFlags: [] },
       arrays: [],
       networks: [],
+      baseURL: '',
+      channelMappingInput: '',
+      channelMappingInputHash: '',
+      lastDetectorType: DEFAULT_DETECTOR_SETTINGS.TYPE,
+      colorBar: DEFAULT_DETECTOR_SETTINGS.COLORBAR,
+      lastMappingConfigs: { channelMappingInput: '', channelMapping: [], paddedSensorIds: [] },
     },
   }),
 
-  prepareData: (ctx: DimensionContext, cfg: CanvasElementOptions<DetectorConfig>) => {
+  prepareData: (ctx: DimensionContext, cfg: CanvasElementOptions<DetectorConfig>): DetectorData => {
     if (!cfg.config) {
       // Return some default/empty DetectorData if config is not defined
       return {
-        measurements: [],
-        baseURL: '',
-        sensors: [],
         detectorType: DEFAULT_DETECTOR_SETTINGS.TYPE,
-        colorBar: DEFAULT_DETECTOR_SETTINGS.COLORBAR,
-        radius: DEFAULT_DETECTOR_SETTINGS.RADIUS,
-        datastream: '',
-        attribute: '',
-        normalized: false,
-        minMeasurement: 0,
-        maxMeasurement: 0,
+        measurementData: {
+          measurements: [],
+          selectedArrays: [],
+          selectedNetworks: [],
+        },
+        colorData: {
+          colorBar: DEFAULT_DETECTOR_SETTINGS.COLORBAR,
+          minMeasurement: 0,
+          maxMeasurement: 0,
+        },
+        mappingData: {
+          channelMapping: [],
+          paddedSensorIds: [],
+          baseURL: '',
+        },
+        variableData: {
+          datastream: '',
+          attribute: '',
+          normalized: false,
+        },
       };
     }
 
     const config = cfg.config;
 
-    const measurements = (config.measurements && ctx.getScalar(config.measurements).field?.values) || [];
-    const radius = config.radius;
-    const colorBar = config.colorBar;
-    const baseURL = config.baseURL || '';
     const detectorType = config.detectorType;
-    // TODO: Pass into sensor element config to display only chosen arrays/networks
+
+    const measurements = (config.measurements && ctx.getScalar(config.measurements).field?.values) || [];
     const selectedArrays = config?.arrays || [];
     const selectedNetworks = config?.networks || [];
+
     const datastream = ((value) => (value !== '$datastream' ? value : ''))(getTemplateSrv().replace('$datastream'));
     const attribute = ((value) => (value !== '$attribute' ? value : ''))(getTemplateSrv().replace('$attribute'));
     const normalized = ((value) => value === 'true' || value === '$normalized')(
       getTemplateSrv().replace('$normalized')
     );
+
+    const colorBar = config.colorBar;
     const minMeasurement = ((value) => (!isNaN(parseFloat(value)) ? parseFloat(value) : 0))(
       getTemplateSrv().replace('$minimum')
     );
@@ -157,32 +183,32 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
       getTemplateSrv().replace('$maximum')
     );
 
-    // Create SVG elements for sensors
-    const sensors = generateSensorElementsFromConfig(
-      config,
-      measurements,
-      radius,
-      colorBar,
-      baseURL,
-      datastream,
-      attribute,
-      normalized,
-      minMeasurement,
-      maxMeasurement
-    );
+    const baseURL = config.baseURL || '';
+    // Only update channelMapping & paddedSensorIds if the channel mapping input has changed.
+    const { channelMapping, paddedSensorIds } = updateChannelMapping(config, measurements);
 
     return {
-      measurements,
-      baseURL,
-      sensors,
-      detectorType,
-      colorBar,
-      radius,
-      datastream,
-      attribute,
-      normalized,
-      minMeasurement,
-      maxMeasurement,
+      detectorType: detectorType,
+      measurementData: {
+        measurements: measurements,
+        selectedArrays: selectedArrays,
+        selectedNetworks: selectedNetworks,
+      },
+      colorData: {
+        colorBar: colorBar,
+        minMeasurement: minMeasurement,
+        maxMeasurement: maxMeasurement,
+      },
+      mappingData: {
+        channelMapping: channelMapping,
+        paddedSensorIds: paddedSensorIds,
+        baseURL: baseURL,
+      },
+      variableData: {
+        datastream: datastream,
+        attribute: attribute,
+        normalized: normalized,
+      },
     };
   },
 
@@ -224,26 +250,11 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
         description: 'Select a field for the channel measurements.',
         editor: ScalarFieldDimensionEditor,
       })
-      // Rotation should be fixed in initial svg generation?
       .addTextInput({
         category,
         path: 'config.channelMappingInput',
         name: 'Channel Mapping Input',
-        description: 'Input channel mapping in the format: channel x y rotation.',
-      })
-      .addTextInput({
-        category,
-        path: 'config.baseURL',
-        name: 'Base URL',
-        description: 'Input the base URL to the time series panel.',
-      })
-      .addNumberInput({
-        category,
-        path: 'config.radius',
-        name: 'Sensor Radius',
-        settings: {
-          placeholder: '1',
-        },
+        description: 'Input channels and they will be mapped to sensor ids in ascending order',
       })
       .addCustomEditor({
         category,
@@ -262,6 +273,12 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
         description: 'Select networks to display',
         editor: DetectorNetworkEditor,
         defaultValue: [],
+      })
+      .addTextInput({
+        category,
+        path: 'config.baseURL',
+        name: 'Base URL',
+        description: 'Input the base URL to the time series panel.',
       });
   },
 };
@@ -269,17 +286,16 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
 export const getDetectorDataStyles = (data: DetectorData | undefined) => (theme: GrafanaTheme2) => ({
   detector: css({
     fill:
-      (data?.measurements ?? []).length > 0 ? 'white' : colorBarMap[data?.colorBar ?? ColorBar.coolwarm].invalidColor,
+      (data?.measurementData.measurements ?? []).length > 0
+        ? 'white'
+        : colorBarMap[data?.colorData.colorBar ?? ColorBar.coolwarm].invalidColor,
   }),
   sensor: css({
-    [theme.transitions.handleMotion('no-preference', 'reduce')]: {
-      // Refresh rate needed here
-    },
     fillOpacity: '1',
     stroke:
-      (data?.measurements ?? []).length > 0
+      (data?.measurementData.measurements ?? []).length > 0
         ? theme.colors.background.primary
-        : colorBarMap[data?.colorBar ?? ColorBar.coolwarm].invalidColor,
+        : colorBarMap[data?.colorData.colorBar ?? ColorBar.coolwarm].invalidColor,
     strokeWidth: theme.spacing(0.1),
   }),
 });
@@ -297,13 +313,5 @@ export const getDetectorStaticStyles = () => (theme: GrafanaTheme2) => ({
     fill: theme.colors.text.primary,
     strokeWidth: theme.spacing(0.01),
     textShadow: `1px 1px 2px ${theme.colors.background.canvas}`,
-  }),
-  activeStatus: css({
-    fill: theme.colors.success.text,
-    fontWeight: theme.typography.fontWeightMedium,
-  }),
-  inactiveStatus: css({
-    fill: theme.colors.error.text,
-    fontWeight: theme.typography.fontWeightMedium,
   }),
 });

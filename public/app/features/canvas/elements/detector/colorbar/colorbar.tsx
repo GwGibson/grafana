@@ -60,16 +60,18 @@ export interface ColorbarDisplayProps {
 }
 
 export const ColorbarDisplay: React.FC<ColorbarDisplayProps> = ({ data, dimensions, isPanelEditing }) => {
-  const scheme: ColorBarScheme = colorBarMap[data.colorBar || ColorBar.cividis];
+  const { colorBar, minMeasurement, maxMeasurement } = data.colorData;
+  const scheme: ColorBarScheme = colorBarMap[colorBar || ColorBar.cividis];
   const styles = useStyles2(getColorBarStyles());
   const { colors, highColor, lowColor } = scheme;
 
   const mainColorBarHeight = dimensions.height * 0.875; // 80% of the total height for main colorbar
   const indicatorHeight = dimensions.height * 0.05; // 5% for each of the high and low indicators
   const colorBarWidth = dimensions.width * 0.75;
-  const gradientId = `gradient-${isPanelEditing ? 'edit' : 'view'}-${data.colorBar}`;
+  const gradientId = `gradient-${isPanelEditing ? 'edit' : 'view'}-${colorBar}`;
 
-  const [min, max] = data.normalized ? [-1.0, 1.0] : formatRange([data.minMeasurement, data.maxMeasurement]);
+  const normalized = data.variableData.normalized;
+  const [min, max] = normalized ? [-1.0, 1.0] : formatRange([minMeasurement, maxMeasurement]);
 
   const textElements: Array<{
     x: number;
@@ -106,7 +108,7 @@ export const ColorbarDisplay: React.FC<ColorbarDisplayProps> = ({ data, dimensio
       </defs>
 
       {/* High color indicator */}
-      {data.normalized && (
+      {normalized && (
         <rect x={dimensions.x} y={dimensions.y} width={colorBarWidth} height={indicatorHeight} fill={highColor} />
       )}
 
@@ -120,7 +122,7 @@ export const ColorbarDisplay: React.FC<ColorbarDisplayProps> = ({ data, dimensio
       />
 
       {/* Low color indicator */}
-      {data.normalized && (
+      {normalized && (
         <rect
           x={dimensions.x}
           y={dimensions.y + indicatorHeight * 3 + mainColorBarHeight}
