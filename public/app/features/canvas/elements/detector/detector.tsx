@@ -4,7 +4,7 @@ import React from 'react';
 import { GrafanaTheme2, PanelOptionsEditorBuilder } from '@grafana/data';
 import { getTemplateSrv } from '@grafana/runtime';
 import { ScalarDimensionConfig } from '@grafana/schema';
-import { usePanelContext, useStyles2 } from '@grafana/ui';
+import { useStyles2 } from '@grafana/ui';
 import { DimensionContext } from 'app/features/dimensions';
 import { ScalarFieldDimensionEditor } from 'app/features/dimensions/editors';
 
@@ -68,16 +68,12 @@ interface DetectorMappingConfig {
 
 // Should build this in 3 components -> Permanent Layout -> Mapping Update -> Color Update
 // Not sure why memoization isn't working. Probably necessary particulary for the initial layout.
-const DetectorDisplay: React.FC<CanvasElementProps<DetectorConfig, DetectorData>> = (props) => {
+export const DetectorDisplay: React.FC<CanvasElementProps<DetectorConfig, DetectorData>> = (props) => {
   const { data } = props;
   const staticStyles = useStyles2(getDetectorStaticStyles());
-  const context = usePanelContext();
-  const scene = context.instanceState?.scene;
-  const isPanelEditing = scene?.isPanelEditing || false;
 
   return data ? (
     <svg
-      key={isPanelEditing ? 'edit' : 'view'}
       viewBox={`-10 -10 ${DETECTOR_LAYOUT.VIEWBOX.WIDTH} ${DETECTOR_LAYOUT.VIEWBOX.HEIGHT}`}
       fill="none"
       preserveAspectRatio="xMidYMid meet"
@@ -94,7 +90,6 @@ const DetectorDisplay: React.FC<CanvasElementProps<DetectorConfig, DetectorData>
             width: DETECTOR_LAYOUT.COLORBAR.WIDTH,
             height: DETECTOR_LAYOUT.COLORBAR.HEIGHT,
           }}
-          isPanelEditing={isPanelEditing}
         />
         {data &&
           data.detectorType &&
@@ -106,8 +101,6 @@ const DetectorDisplay: React.FC<CanvasElementProps<DetectorConfig, DetectorData>
     </svg>
   ) : null;
 };
-
-export default React.memo(DetectorDisplay);
 
 export const DEFAULT_DETECTOR_SETTINGS = {
   TYPE: getDefaultDetectorType(),
@@ -278,7 +271,7 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
   },
 };
 
-export const getDetectorDataStyles = (data: DetectorData | undefined) => (theme: GrafanaTheme2) => ({
+export const getDetectorDynamicStyles = (data: DetectorData | undefined) => (theme: GrafanaTheme2) => ({
   detector: css({
     fill:
       (data?.measurementData.measurements ?? []).length > 0
@@ -297,7 +290,6 @@ export const getDetectorDataStyles = (data: DetectorData | undefined) => (theme:
 
 export const getDetectorStaticStyles = () => (theme: GrafanaTheme2) => ({
   outline: css({
-    stroke: theme.colors.warning.main,
     strokeLinecap: 'round',
     strokeLinejoin: 'round',
     strokeWidth: theme.spacing(0.625),
@@ -310,27 +302,3 @@ export const getDetectorStaticStyles = () => (theme: GrafanaTheme2) => ({
     textShadow: `1px 1px 2px ${theme.colors.background.canvas}`,
   }),
 });
-
-// const arePropsEqual = (prevProps: ColorbarDisplayProps, nextProps: ColorbarDisplayProps) => {
-//   console.log('Comparing props:', prevProps, nextProps);
-
-//   const isDataEqual =
-//     prevProps.data.colorBar === nextProps.data.colorBar &&
-//     prevProps.data.minMeasurement === nextProps.data.minMeasurement &&
-//     prevProps.data.maxMeasurement === nextProps.data.maxMeasurement;
-
-//   const isDimensionsEqual =
-//     prevProps.dimensions.x === nextProps.dimensions.x &&
-//     prevProps.dimensions.y === nextProps.dimensions.y &&
-//     prevProps.dimensions.width === nextProps.dimensions.width &&
-//     prevProps.dimensions.height === nextProps.dimensions.height;
-
-//   const equal =
-//     isDataEqual &&
-//     isDimensionsEqual &&
-//     prevProps.normalized === nextProps.normalized &&
-//     prevProps.isPanelEditing === nextProps.isPanelEditing;
-
-//   console.log('Props equal:', equal);
-//   return equal;
-// };

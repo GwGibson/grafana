@@ -1,3 +1,4 @@
+import { cx } from '@emotion/css';
 import React from 'react';
 
 import { useStyles2 } from '@grafana/ui';
@@ -9,12 +10,13 @@ import {
   DetectorMappingData,
   DetectorMeasurementData,
   DetectorVariableData,
-  getDetectorDataStyles,
+  getDetectorDynamicStyles,
+  getDetectorStaticStyles,
 } from '../detector';
-import { createHexagonComponent } from '../utils/geometryUtils';
-import { ModuleLayout, SensorData } from '../utils/moduleLayout';
+import { createHexagonPoints, scaleCoordinates } from '../utils/geometryUtils';
+import { HexagonData, ModuleLayout, SensorData } from '../utils/moduleLayout';
 import { Sensor } from '../utils/sensor';
-import { generateSensorLink, scaleCoordinates } from '../utils/sensorUtils';
+import { generateSensorLink } from '../utils/sensorUtils';
 
 interface DetectorBaseProps {
   data: DetectorData;
@@ -23,8 +25,8 @@ interface DetectorBaseProps {
 }
 
 export const DetectorBase: React.FC<DetectorBaseProps> = ({ data, extents, initializeModuleLayout }) => {
-  const dynamicStyles = useStyles2(getDetectorDataStyles(data));
-  const hexagon = createHexagonComponent(extents, false);
+  const dynamicStyles = useStyles2(getDetectorDynamicStyles(data));
+  const staticStyles = useStyles2(getDetectorStaticStyles());
 
   // Contains all required information to construct the module but no rendering occurs here
   const moduleLayout = initializeModuleLayout();
@@ -34,8 +36,8 @@ export const DetectorBase: React.FC<DetectorBaseProps> = ({ data, extents, initi
   }
 
   // TODO: Build hexagons here
-  // const initialModuleData = generateInitialModuleLayout(moduleLayout);
-  const initialSensorData = generateInitialSensorLayout(moduleLayout);
+  const initialModuleData = generateModuleLayout(moduleLayout, extents);
+  const initialSensorData = generateInitialSensorLayout(moduleLayout, extents);
   const mappedSensorData = updateSensorDataWithMapping(initialSensorData, data.mappingData, data.variableData);
   const finalSensorData = updateSensorColorsAndText(
     mappedSensorData,
@@ -46,7 +48,14 @@ export const DetectorBase: React.FC<DetectorBaseProps> = ({ data, extents, initi
 
   return (
     <g className={dynamicStyles.detector}>
-      {hexagon}
+      {initialModuleData.map((hexagon) => (
+        <polygon
+          key={hexagon.id}
+          points={hexagon.points}
+          className={cx(dynamicStyles.detector, staticStyles.outline)}
+          stroke={hexagon.color}
+        />
+      ))}
       <g className={dynamicStyles.sensor}>
         {finalSensorData.map((sensor) => (
           <Sensor key={sensor.id} configData={sensor} />
@@ -56,13 +65,32 @@ export const DetectorBase: React.FC<DetectorBaseProps> = ({ data, extents, initi
   );
 };
 
-const generateInitialSensorLayout = (moduleLayout: ModuleLayout): SensorData[] => {
+const generateModuleLayout = (moduleLayout: ModuleLayout, detectorExtents: { x: number; y: number; }): HexagonData[] => {
+  return moduleLayout.hexagons.map((hexagon) => ({
+    id: hexagon.name,
+    center: { x: hexagon.center[0], y: hexagon.center[1] },
+    radius: hexagon.radius,
+    color: hexagon.color,
+    points: createHexagonPoints(
+      { x: hexagon.center[0], y: hexagon.center[1] },
+      hexagon.radius,
+      moduleLayout.moduleExtents,
+      detectorExtents,
+    ),
+  }));
+};
+
+const generateInitialSensorLayout = (moduleLayout: ModuleLayout, detectorExtents: { x: number; y: number; }): SensorData[] => {
   let sensorData: SensorData[] = [];
 
   moduleLayout.hexagons.forEach((hexagon) => {
     hexagon.networks.forEach((network) => {
-      // TODO: Draw appropriate hexagons here
-      const scaledCoords = scaleCoordinates(network.sensors.map((sensor) => sensor.position));
+      // TODO: Need to scale sensor radius here as well
+      const scaledCoords = scaleCoordinates(
+        network.sensors.map((sensor) => sensor.position),
+        moduleLayout.moduleExtents,
+        detectorExtents,
+      );
       network.sensors.forEach((sensor, sensorIndex) => {
         // TODO: Will need to assign each sensor an appropriate network
         sensorData.push({

@@ -1,4 +1,5 @@
 export interface ModuleLayout {
+  moduleExtents: { x: number; y: number };
   hexagons: HexagonInfo[];
 }
 
@@ -10,12 +11,20 @@ interface HexagonInfo {
   networks: NetworkInfo[];
 }
 
-interface NetworkInfo {
-  name: string;
-  sensors: SensorInput[];
+export interface HexagonData {
+  id: string;
+  center: { x: number; y: number };
+  radius: number;
+  color: string;
+  points: string;
 }
 
-export interface SensorInput {
+interface NetworkInfo {
+  name: string;
+  sensors: SensorInfo[];
+}
+
+export interface SensorInfo {
   id: number;
   position: [number, number];
   rotation: number;
@@ -45,38 +54,3 @@ export interface SensorData {
   text: string;
   textFillColor: string;
 }
-
-export const loadSensorInfo = async (filename: string): Promise<SensorData[]> => {
-  try {
-    const response = await fetch(filename);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    const data: SensorData[] = await response.json();
-
-    if (!Array.isArray(data)) {
-      throw new Error('Invalid data format: expected an array');
-    }
-
-    // TODO: More (or less) validation checks
-    const isValidSensorInfo = (item: any): item is SensorData => {
-      return (
-        typeof item === 'object' &&
-        item !== null &&
-        'position' in item &&
-        'x' in item.position &&
-        'y' in item.position &&
-        'rotation' in item &&
-        'isDark' in item
-      );
-    };
-
-    if (!data.every(isValidSensorInfo)) {
-      throw new Error('Invalid data format: some items do not match SensorInfo structure');
-    }
-    return data;
-  } catch (error) {
-    console.error('Error loading sensor info:', error);
-    throw error;
-  }
-};

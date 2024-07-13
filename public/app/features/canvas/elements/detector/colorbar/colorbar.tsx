@@ -2,7 +2,7 @@ import { css } from '@emotion/css';
 import React from 'react';
 
 import { GrafanaTheme2 } from '@grafana/data';
-import { useStyles2 } from '@grafana/ui';
+import { usePanelContext, useStyles2 } from '@grafana/ui';
 
 import { COLOR_SCALE_SIZE, ColorBarScheme, cividis, coolwarm, hot, plasma, viridis } from './colorSchemes';
 
@@ -67,7 +67,6 @@ export interface ColorbarDisplayProps {
     width: number;
     height: number;
   };
-  isPanelEditing: boolean;
 }
 
 export const ColorBarDisplay: React.FC<ColorbarDisplayProps> = ({
@@ -76,9 +75,10 @@ export const ColorBarDisplay: React.FC<ColorbarDisplayProps> = ({
   maxMeasurement,
   normalized,
   dimensions,
-  isPanelEditing,
 }) => {
-  console.log('Colorbar Display called!');
+  const context = usePanelContext();
+  const scene = context.instanceState?.scene;
+  const isPanelEditing = scene?.isPanelEditing || false;
 
   const scheme: ColorBarScheme = ColorBarData[colorBar].scheme;
   const styles = useStyles2(getColorBarStyles());

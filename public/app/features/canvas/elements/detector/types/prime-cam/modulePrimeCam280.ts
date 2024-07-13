@@ -17,11 +17,12 @@ export const sensorArrayConfigPRIMECAM280 = [
 
 export const initializePrimeCamModule = (): ModuleLayout => {
   const moduleLayoutPrimeCam280: ModuleLayout = {
+    moduleExtents: { x: 400, y: 400 },
     hexagons: [
       {
         name: 'Hex1',
         center: [0, 0],
-        radius: 1,
+        radius: 400,
         color: '#FFFFFF',
         networks: [
           {

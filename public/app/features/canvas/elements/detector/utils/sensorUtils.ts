@@ -1,5 +1,4 @@
 import { DetectorConfig } from '../detector';
-import { DETECTOR_EXTENTS } from '../layout';
 
 export const generateSensorLink = (
   baseURL: string,
@@ -65,40 +64,4 @@ export const parseChannelMapping = (inputText: string): number[] | undefined => 
     mappings.push(channel);
   }
   return mappings.length > 0 ? mappings : undefined;
-};
-
-export const scaleCoordinates = (
-  coords: Array<[number, number]>,
-  extents: [number, number] = [DETECTOR_EXTENTS.x, DETECTOR_EXTENTS.y],
-  marginPercentage = 0.1
-): Array<[number, number]> => {
-  const marginX = extents[0] * marginPercentage;
-  const marginY = extents[1] * marginPercentage;
-
-  const adjustedXmin = marginX;
-  const adjustedYmin = marginY;
-  const adjustedXmax = extents[0] - marginX;
-  const adjustedYmax = extents[1] - marginY;
-
-  const newWidth = adjustedXmax - adjustedXmin;
-  const newHeight = adjustedYmax - adjustedYmin;
-
-  const originalXmin = Math.min(...coords.map(([x, _]) => x));
-  const originalYmin = Math.min(...coords.map(([_, y]) => y));
-  const originalXmax = Math.max(...coords.map(([x, _]) => x));
-  const originalYmax = Math.max(...coords.map(([_, y]) => y));
-
-  const originalWidth = originalXmax - originalXmin;
-  const originalHeight = originalYmax - originalYmin;
-
-  // Prevent division by zero
-  const scaleX = originalWidth !== 0 ? newWidth / originalWidth : 1;
-  const scaleY = originalHeight !== 0 ? newHeight / originalHeight : 1;
-
-  const scaledCoords: Array<[number, number]> = coords.map(([x, y]) => [
-    originalWidth !== 0 ? (x - originalXmin) * scaleX + adjustedXmin : (adjustedXmin + adjustedXmax) / 2,
-    originalHeight !== 0 ? (y - originalYmin) * scaleY + adjustedYmin : (adjustedYmin + adjustedYmax) / 2,
-  ]);
-
-  return scaledCoords;
 };
