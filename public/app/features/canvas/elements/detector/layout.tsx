@@ -1,16 +1,6 @@
-import { DetectorData } from './detector';
-
 // This file is meant to be a shared file between all detector types
 // that expresses the general layout of the area that will contain
 // the specific detector layout.
-
-export interface DetectorDisplayProps {
-  data: DetectorData;
-  extents: {
-    x: number;
-    y: number;
-  };
-}
 
 // TODO: Some 'magic numbers' here. Should base all of these off the original EXTENTS
 // Don't think it is worth it to base them off the physical detector shape, just use the

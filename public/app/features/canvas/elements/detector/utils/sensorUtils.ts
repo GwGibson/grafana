@@ -32,6 +32,7 @@ export const updateChannelMapping = (
   const paddedSensorIdsInvalid = paddedSensorIds.length === 0 || paddedSensorIds[0].length !== measurementLength;
 
   // TODO: This first comparison might be a problem for really long strings that are identical
+  // If done via API endpoint, this can be a timestamp comparison
   if (currentChannelMappingInput !== lastChannelMappingInput || measurements.length === 0 || paddedSensorIdsInvalid) {
     const newMapping = parseChannelMapping(currentChannelMappingInput);
     if (newMapping) {

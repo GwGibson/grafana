@@ -1,4 +1,5 @@
 import { css } from '@emotion/css';
+import React from 'react';
 
 import { GrafanaTheme2, PanelOptionsEditorBuilder } from '@grafana/data';
 import { getTemplateSrv } from '@grafana/runtime';
@@ -9,10 +10,10 @@ import { ScalarFieldDimensionEditor } from 'app/features/dimensions/editors';
 
 import { CanvasElementItem, CanvasElementOptions, CanvasElementProps } from '../../element';
 
-import { colorBarMap, ColorBar, ColorbarDisplay } from './colorbar/colorbar';
+import { ColorBar, ColorBarData, ColorBarDisplay, colorBarOptions, getDefaultColorBar } from './colorbar/colorbar';
 import { DetectorArrayEditor, DetectorNetworkEditor } from './detectorEditors';
 import { DETECTOR_EXTENTS, DETECTOR_LAYOUT } from './layout';
-import { DetectorType, DetectorBlast, DetectorPrimeCam280 } from './types';
+import { DetectorType, detectorOptions, getDetectorComponent, getDefaultDetectorType } from './types';
 import { updateChannelMapping } from './utils/sensorUtils';
 
 export interface DetectorData {
@@ -23,42 +24,40 @@ export interface DetectorData {
   variableData: DetectorVariableData;
 }
 
-interface DetectorMeasurementData {
+export interface DetectorMeasurementData {
   measurements: number[];
   selectedArrays: string[];
   selectedNetworks: string[];
 }
 
-interface DetectorColorData {
+export interface DetectorColorData {
   colorBar: ColorBar;
   minMeasurement: number;
   maxMeasurement: number;
 }
 
-interface DetectorMappingData {
+export interface DetectorMappingData {
   // [channel] -> maps to sensor ids in ascending order
   channelMapping: number[];
   paddedSensorIds: string[];
   baseURL: string;
 }
 
-interface DetectorVariableData {
+export interface DetectorVariableData {
   datastream: string;
   attribute: string;
   normalized: boolean;
 }
 
 export interface DetectorConfig {
+  detectorType: DetectorType;
   measurements?: ScalarDimensionConfig;
   arrays: string[];
   networks: string[];
   baseURL: string;
   channelMappingInput: string;
-  channelMappingInputHash: string;
-  detectorType: DetectorType;
-  lastDetectorType: DetectorType;
-  colorBar: ColorBar;
   lastMappingConfigs: DetectorMappingConfig;
+  colorBar: ColorBar;
 }
 
 interface DetectorMappingConfig {
@@ -67,8 +66,9 @@ interface DetectorMappingConfig {
   paddedSensorIds: string[];
 }
 
-const DetectorDisplay = (props: CanvasElementProps<DetectorConfig, DetectorData>) => {
-  // console.log("Detector Display called!");
+// Should build this in 3 components -> Permanent Layout -> Mapping Update -> Color Update
+// Not sure why memoization isn't working. Probably necessary particulary for the initial layout.
+const DetectorDisplay: React.FC<CanvasElementProps<DetectorConfig, DetectorData>> = (props) => {
   const { data } = props;
   const staticStyles = useStyles2(getDetectorStaticStyles());
   const context = usePanelContext();
@@ -83,8 +83,11 @@ const DetectorDisplay = (props: CanvasElementProps<DetectorConfig, DetectorData>
       preserveAspectRatio="xMidYMid meet"
     >
       <g className={staticStyles.outline}>
-        <ColorbarDisplay
-          data={data}
+        <ColorBarDisplay
+          colorBar={data.colorData.colorBar}
+          minMeasurement={data.colorData.minMeasurement}
+          maxMeasurement={data.colorData.maxMeasurement}
+          normalized={data.variableData.normalized}
           dimensions={{
             x: DETECTOR_LAYOUT.COLORBAR.X,
             y: DETECTOR_LAYOUT.COLORBAR.Y,
@@ -93,19 +96,22 @@ const DetectorDisplay = (props: CanvasElementProps<DetectorConfig, DetectorData>
           }}
           isPanelEditing={isPanelEditing}
         />
-        {data && data.detectorType === DetectorType.Blast ? (
-          <DetectorBlast data={data} extents={DETECTOR_EXTENTS} />
-        ) : data && data.detectorType === DetectorType.PrimeCam280 ? (
-          <DetectorPrimeCam280 data={data} extents={DETECTOR_EXTENTS} />
-        ) : null}
+        {data &&
+          data.detectorType &&
+          (() => {
+            const DetectorComponent = getDetectorComponent(data.detectorType as DetectorType);
+            return <DetectorComponent data={data} extents={DETECTOR_EXTENTS} />;
+          })()}
       </g>
     </svg>
   ) : null;
 };
 
+export default React.memo(DetectorDisplay);
+
 export const DEFAULT_DETECTOR_SETTINGS = {
-  TYPE: DetectorType.PrimeCam280,
-  COLORBAR: ColorBar.coolwarm,
+  TYPE: getDefaultDetectorType(),
+  COLORBAR: getDefaultColorBar(),
 } as const;
 
 export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
@@ -126,10 +132,8 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
       networks: [],
       baseURL: '',
       channelMappingInput: '',
-      channelMappingInputHash: '',
-      lastDetectorType: DEFAULT_DETECTOR_SETTINGS.TYPE,
-      colorBar: DEFAULT_DETECTOR_SETTINGS.COLORBAR,
       lastMappingConfigs: { channelMappingInput: '', channelMapping: [], paddedSensorIds: [] },
+      colorBar: DEFAULT_DETECTOR_SETTINGS.COLORBAR,
     },
   }),
 
@@ -156,7 +160,7 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
         variableData: {
           datastream: '',
           attribute: '',
-          normalized: false,
+          normalized: true,
         },
       };
     }
@@ -176,10 +180,10 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
     );
 
     const colorBar = config.colorBar;
-    const minMeasurement = ((value) => (!isNaN(parseFloat(value)) ? parseFloat(value) : 0))(
+    const minMeasurement = ((value) => (!isNaN(parseFloat(value)) ? parseFloat(value) : -1))(
       getTemplateSrv().replace('$minimum')
     );
-    const maxMeasurement = ((value) => (!isNaN(parseFloat(value)) ? parseFloat(value) : 0))(
+    const maxMeasurement = ((value) => (!isNaN(parseFloat(value)) ? parseFloat(value) : 1))(
       getTemplateSrv().replace('$maximum')
     );
 
@@ -220,27 +224,18 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
         path: 'config.detectorType',
         name: 'Type',
         settings: {
-          options: [
-            { value: DetectorType.Blast, label: DetectorType.Blast },
-            { value: DetectorType.PrimeCam280, label: DetectorType.PrimeCam280 },
-          ],
+          options: detectorOptions,
         },
-        defaultValue: DetectorType.PrimeCam280,
+        defaultValue: getDefaultDetectorType(),
       })
       .addSelect({
         category,
         path: 'config.colorBar',
         name: 'Color Theme',
         settings: {
-          options: [
-            { value: ColorBar.cividis, label: ColorBar.cividis },
-            { value: ColorBar.viridis, label: ColorBar.viridis },
-            { value: ColorBar.hot, label: ColorBar.hot },
-            { value: ColorBar.coolwarm, label: ColorBar.coolwarm },
-            { value: ColorBar.plasma, label: ColorBar.plasma },
-          ],
+          options: colorBarOptions,
         },
-        defaultValue: ColorBar.coolwarm,
+        defaultValue: getDefaultColorBar(),
       })
       .addCustomEditor({
         category,
@@ -288,14 +283,14 @@ export const getDetectorDataStyles = (data: DetectorData | undefined) => (theme:
     fill:
       (data?.measurementData.measurements ?? []).length > 0
         ? 'white'
-        : colorBarMap[data?.colorData.colorBar ?? ColorBar.coolwarm].invalidColor,
+        : ColorBarData[data?.colorData.colorBar ?? getDefaultColorBar()].scheme.invalidColor,
   }),
   sensor: css({
     fillOpacity: '1',
     stroke:
       (data?.measurementData.measurements ?? []).length > 0
         ? theme.colors.background.primary
-        : colorBarMap[data?.colorData.colorBar ?? ColorBar.coolwarm].invalidColor,
+        : ColorBarData[data?.colorData.colorBar ?? getDefaultColorBar()].scheme.invalidColor,
     strokeWidth: theme.spacing(0.1),
   }),
 });
@@ -315,3 +310,27 @@ export const getDetectorStaticStyles = () => (theme: GrafanaTheme2) => ({
     textShadow: `1px 1px 2px ${theme.colors.background.canvas}`,
   }),
 });
+
+// const arePropsEqual = (prevProps: ColorbarDisplayProps, nextProps: ColorbarDisplayProps) => {
+//   console.log('Comparing props:', prevProps, nextProps);
+
+//   const isDataEqual =
+//     prevProps.data.colorBar === nextProps.data.colorBar &&
+//     prevProps.data.minMeasurement === nextProps.data.minMeasurement &&
+//     prevProps.data.maxMeasurement === nextProps.data.maxMeasurement;
+
+//   const isDimensionsEqual =
+//     prevProps.dimensions.x === nextProps.dimensions.x &&
+//     prevProps.dimensions.y === nextProps.dimensions.y &&
+//     prevProps.dimensions.width === nextProps.dimensions.width &&
+//     prevProps.dimensions.height === nextProps.dimensions.height;
+
+//   const equal =
+//     isDataEqual &&
+//     isDimensionsEqual &&
+//     prevProps.normalized === nextProps.normalized &&
+//     prevProps.isPanelEditing === nextProps.isPanelEditing;
+
+//   console.log('Props equal:', equal);
+//   return equal;
+// };

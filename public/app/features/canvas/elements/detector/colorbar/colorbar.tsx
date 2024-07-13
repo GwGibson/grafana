@@ -4,17 +4,24 @@ import React from 'react';
 import { GrafanaTheme2 } from '@grafana/data';
 import { useStyles2 } from '@grafana/ui';
 
-import { DetectorData } from '../detector';
-
 import { COLOR_SCALE_SIZE, ColorBarScheme, cividis, coolwarm, hot, plasma, viridis } from './colorSchemes';
 
-export enum ColorBar {
-  cividis = 'cividis',
-  viridis = 'viridis',
-  hot = 'hot',
-  coolwarm = 'coolwarm',
-  plasma = 'plasma',
-}
+export const ColorBarData: Record<string, { label: string; scheme: ColorBarScheme }> = {
+  cividis: { label: 'Cividis', scheme: cividis },
+  viridis: { label: 'Viridis', scheme: viridis },
+  hot: { label: 'Hot', scheme: hot },
+  coolwarm: { label: 'Coolwarm', scheme: coolwarm },
+  plasma: { label: 'Plasma', scheme: plasma },
+};
+
+export const colorBarOptions = Object.entries(ColorBarData).map(([key, value]) => ({
+  value: key as ColorBar,
+  label: value.label,
+}));
+
+export type ColorBar = keyof typeof ColorBarData;
+export const getColorBarKey = (key: ColorBar): ColorBar => key;
+export const getDefaultColorBar = (): ColorBar => 'coolwarm';
 
 export const getColor = (
   measurements: number[],
@@ -25,10 +32,11 @@ export const getColor = (
   allowOutOfRange: boolean,
   outOfRangeFactor: number
 ): string => {
-  const scheme = colorBarMap[colorBarType];
+  const scheme = ColorBarData[colorBarType].scheme;
   if (index >= measurements.length || index < 0) {
     return scheme.invalidColor;
   }
+
   const measurement = measurements[index];
   // Assuming colorBarMin is -1 and colorBarMax is 1 here!
   // This may not work properly if the normalized min and max are changed.
@@ -49,7 +57,10 @@ export const getColor = (
 };
 
 export interface ColorbarDisplayProps {
-  data: DetectorData;
+  colorBar: string;
+  minMeasurement: number;
+  maxMeasurement: number;
+  normalized: boolean;
   dimensions: {
     x: number;
     y: number;
@@ -59,44 +70,44 @@ export interface ColorbarDisplayProps {
   isPanelEditing: boolean;
 }
 
-export const ColorbarDisplay: React.FC<ColorbarDisplayProps> = ({ data, dimensions, isPanelEditing }) => {
-  const { colorBar, minMeasurement, maxMeasurement } = data.colorData;
-  const scheme: ColorBarScheme = colorBarMap[colorBar || ColorBar.cividis];
+export const ColorBarDisplay: React.FC<ColorbarDisplayProps> = ({
+  colorBar,
+  minMeasurement,
+  maxMeasurement,
+  normalized,
+  dimensions,
+  isPanelEditing,
+}) => {
+  console.log('Colorbar Display called!');
+
+  const scheme: ColorBarScheme = ColorBarData[colorBar].scheme;
   const styles = useStyles2(getColorBarStyles());
   const { colors, highColor, lowColor } = scheme;
 
-  const mainColorBarHeight = dimensions.height * 0.875; // 80% of the total height for main colorbar
-  const indicatorHeight = dimensions.height * 0.05; // 5% for each of the high and low indicators
+  const mainColorBarHeight = dimensions.height * 0.875;
+  const indicatorHeight = dimensions.height * 0.05;
   const colorBarWidth = dimensions.width * 0.75;
   const gradientId = `gradient-${isPanelEditing ? 'edit' : 'view'}-${colorBar}`;
 
-  const normalized = data.variableData.normalized;
   const [min, max] = normalized ? [-1.0, 1.0] : formatRange([minMeasurement, maxMeasurement]);
 
-  const textElements: Array<{
-    x: number;
-    y: number;
-    value: number | string;
-    textAnchor: 'start' | 'middle' | 'end';
-    alignmentBaseline: 'baseline' | 'middle' | 'hanging';
-  }> = [
+  const textElements = [
     {
       x: dimensions.x + colorBarWidth / 2,
       y: dimensions.y + indicatorHeight * 1.75,
       value: max,
-      textAnchor: 'middle',
-      alignmentBaseline: 'baseline',
+      textAnchor: 'middle' as const,
+      alignmentBaseline: 'baseline' as const,
     },
     {
       x: dimensions.x + colorBarWidth / 2,
       y: dimensions.y + indicatorHeight * 2.2 + mainColorBarHeight,
       value: min,
-      textAnchor: 'middle',
-      alignmentBaseline: 'hanging',
+      textAnchor: 'middle' as const,
+      alignmentBaseline: 'hanging' as const,
     },
   ];
 
-  // Should only display the high and low indicators if data.normalized is true
   return (
     <g className={styles.outline}>
       <defs>
@@ -107,12 +118,10 @@ export const ColorbarDisplay: React.FC<ColorbarDisplayProps> = ({ data, dimensio
         </linearGradient>
       </defs>
 
-      {/* High color indicator */}
       {normalized && (
         <rect x={dimensions.x} y={dimensions.y} width={colorBarWidth} height={indicatorHeight} fill={highColor} />
       )}
 
-      {/* Main color bar in the middle */}
       <rect
         x={dimensions.x}
         y={dimensions.y + indicatorHeight * 2}
@@ -121,7 +130,6 @@ export const ColorbarDisplay: React.FC<ColorbarDisplayProps> = ({ data, dimensio
         fill={`url(#${gradientId})`}
       />
 
-      {/* Low color indicator */}
       {normalized && (
         <rect
           x={dimensions.x}
@@ -132,7 +140,6 @@ export const ColorbarDisplay: React.FC<ColorbarDisplayProps> = ({ data, dimensio
         />
       )}
 
-      {/* Rendering text elements iteratively */}
       {textElements.map((text, index) => (
         <text
           key={index}
@@ -176,11 +183,3 @@ const getColorBarStyles = () => (theme: GrafanaTheme2) => ({
     fontFamily: theme.typography.fontFamilyMonospace,
   }),
 });
-
-export const colorBarMap: { [key in ColorBar]: ColorBarScheme } = {
-  [ColorBar.viridis]: viridis,
-  [ColorBar.cividis]: cividis,
-  [ColorBar.hot]: hot,
-  [ColorBar.coolwarm]: coolwarm,
-  [ColorBar.plasma]: plasma,
-};
