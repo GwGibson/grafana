@@ -53,6 +53,18 @@ export const scaleCoordinates = (
   return scaledCoords;
 };
 
+export const scaleRadius = (
+  radius: number,
+  moduleExtents: { x: number; y: number },
+  detectorExtents: { x: number; y: number }
+): number => {
+  const scaleX = detectorExtents.x / moduleExtents.x;
+  const scaleY = detectorExtents.y / moduleExtents.y;
+  const scale = Math.min(scaleX, scaleY);
+
+  return radius * scale;
+};
+
 export const createLineComponents = (
   moduleExtents: { x: number; y: number },
   detectorExtents: { X: number; Y: number },

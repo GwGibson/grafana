@@ -1,7 +1,7 @@
 import { DetectorData } from '../../detector';
 import { DetectorBase } from '../detectorBase';
 
-import { initializeBlastModule } from './moduleBlast';
+import { MODULE_LAYOUT_BLAST } from './moduleBlast';
 
 export const DetectorBlast = ({
   data,
@@ -13,5 +13,5 @@ export const DetectorBlast = ({
     y: number;
   };
 }) => {
-  return <DetectorBase data={data} extents={extents} initializeModuleLayout={initializeBlastModule} />;
+  return <DetectorBase data={data} extents={extents} moduleLayout={MODULE_LAYOUT_BLAST} />;
 };

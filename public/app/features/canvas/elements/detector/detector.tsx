@@ -13,19 +13,19 @@ import { CanvasElementItem, CanvasElementOptions, CanvasElementProps } from '../
 import { ColorBar, ColorBarData, ColorBarDisplay, colorBarOptions, getDefaultColorBar } from './colorbar/colorbar';
 import { DetectorArrayEditor, DetectorNetworkEditor } from './detectorEditors';
 import { DETECTOR_EXTENTS, DETECTOR_LAYOUT } from './layout';
-import { DetectorType, detectorOptions, getDetectorComponent, getDefaultDetectorType } from './types';
+import { DetectorType, detectorOptions, getDetectorComponent, getDefaultDetectorType } from './types/moduleInfo';
 import { updateChannelMapping } from './utils/sensorUtils';
 
 export interface DetectorData {
   detectorType: DetectorType;
-  measurementData: DetectorMeasurementData;
+  measurements: number[];
+  displayData: DetectorDisplayData;
   colorData: DetectorColorData;
   mappingData: DetectorMappingData;
   variableData: DetectorVariableData;
 }
 
-export interface DetectorMeasurementData {
-  measurements: number[];
+export interface DetectorDisplayData {
   selectedArrays: string[];
   selectedNetworks: string[];
 }
@@ -135,8 +135,8 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
       // Return some default/empty DetectorData if config is not defined
       return {
         detectorType: DEFAULT_DETECTOR_SETTINGS.TYPE,
-        measurementData: {
-          measurements: [],
+        measurements: [],
+        displayData: {
           selectedArrays: [],
           selectedNetworks: [],
         },
@@ -186,8 +186,8 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
 
     return {
       detectorType: detectorType,
-      measurementData: {
-        measurements: measurements,
+      measurements: measurements,
+      displayData: {
         selectedArrays: selectedArrays,
         selectedNetworks: selectedNetworks,
       },
@@ -274,14 +274,14 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
 export const getDetectorDynamicStyles = (data: DetectorData | undefined) => (theme: GrafanaTheme2) => ({
   detector: css({
     fill:
-      (data?.measurementData.measurements ?? []).length > 0
+      (data?.measurements ?? []).length > 0
         ? 'white'
         : ColorBarData[data?.colorData.colorBar ?? getDefaultColorBar()].scheme.invalidColor,
   }),
   sensor: css({
     fillOpacity: '1',
     stroke:
-      (data?.measurementData.measurements ?? []).length > 0
+      (data?.measurements ?? []).length > 0
         ? theme.colors.background.primary
         : ColorBarData[data?.colorData.colorBar ?? getDefaultColorBar()].scheme.invalidColor,
     strokeWidth: theme.spacing(0.1),

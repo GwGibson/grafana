@@ -1,13 +1,12 @@
 import { DetectorData } from '../detector';
 
 import { DetectorBlast } from './blast/detectorBlast';
-import { sensorArrayConfigBLAST } from './blast/moduleBlast';
+import { SENSOR_ARRAY_CONFIG_BLAST } from './blast/moduleBlast';
 import { DetectorPrimeCam280 } from './prime-cam/detectorPrimeCam280';
-import { sensorArrayConfigPRIMECAM280 } from './prime-cam/modulePrimeCam280';
+import { SENSOR_ARRAY_CONFIG_PRIMECAM280 } from './prime-cam/modulePrimeCam280';
 
-// For PRIMECAM280, 3 sensor arrays, 6 networks and 1 for 'all' option.
-export const MAX_NETWORK_VALUES = 3 * 6 + 1;
-
+// For dashboard array & network options
+// Not ideal as this must be updated each time a new detector is added
 export const ModuleData: Record<
   string,
   {
@@ -19,23 +18,84 @@ export const ModuleData: Record<
   BLAST: {
     label: 'BLAST',
     component: DetectorBlast,
-    arrays: sensorArrayConfigBLAST,
+    arrays: SENSOR_ARRAY_CONFIG_BLAST,
   },
   'PRIMECAM-280': {
     label: 'PRIMECAM-280',
     component: DetectorPrimeCam280,
-    arrays: sensorArrayConfigPRIMECAM280,
+    arrays: SENSOR_ARRAY_CONFIG_PRIMECAM280,
   },
 };
+
+export interface SensorArray {
+  name: string;
+  networks: string[];
+}
 
 export const detectorOptions = Object.entries(ModuleData).map(([key, value]) => ({
   value: key as DetectorType,
   label: value.label,
 }));
 
-export interface SensorArray {
+// For PRIMECAM280, 3 sensor arrays, 6 networks and 1 for 'all' option.
+export const MAX_NETWORK_VALUES = 3 * 6 + 1;
+
+// For dashboard display
+export interface ModuleLayout {
+  sensorRadii: number;
+  moduleExtents: { x: number; y: number };
+  hexagons: HexagonInfo[];
+}
+
+export interface HexagonInfo {
   name: string;
-  networks: string[];
+  center: [number, number];
+  radius: number;
+  color: string;
+  networks: NetworkInfo[];
+}
+
+export interface HexagonData {
+  name: string;
+  center: { x: number; y: number };
+  radius: number;
+  color: string;
+  points: string;
+}
+
+interface NetworkInfo {
+  name: string;
+  sensors: SensorInfo[];
+}
+
+export interface SensorInfo {
+  id: number;
+  position: [number, number];
+  rotation: number;
+  sweepFlag: number;
+  isDark: boolean;
+}
+
+export interface SensorData {
+  // Static properties
+  id: number;
+  scaledPosition: [number, number];
+  unscaledPosition: [number, number]; // For hover text
+  rotation: number;
+  sweepFlag: number;
+  isDark: boolean;
+  radius: number;
+
+  // Dynamic properties -> need updating when channel mapping changes
+  channel: number;
+  sensorLink: string;
+
+  // Very Dynamic properties -> need updating when measurements change
+  // Consider arrays of these in the NetworkInfo interface
+  isActive: boolean;
+  fillColor: string;
+  text: string;
+  textFillColor: string;
 }
 
 interface DetectorDisplayProps {

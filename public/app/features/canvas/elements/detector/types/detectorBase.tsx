@@ -8,49 +8,42 @@ import {
   DetectorColorData,
   DetectorData,
   DetectorMappingData,
-  DetectorMeasurementData,
   DetectorVariableData,
   getDetectorDynamicStyles,
   getDetectorStaticStyles,
 } from '../detector';
-import { createHexagonPoints, scaleCoordinates } from '../utils/geometryUtils';
-import { HexagonData, ModuleLayout, SensorData } from '../utils/moduleLayout';
+import { createHexagonPoints, scaleCoordinates, scaleRadius } from '../utils/geometryUtils';
 import { Sensor } from '../utils/sensor';
 import { generateSensorLink } from '../utils/sensorUtils';
+
+import { HexagonData, ModuleLayout, SensorData } from './moduleInfo';
 
 interface DetectorBaseProps {
   data: DetectorData;
   extents: { x: number; y: number };
-  initializeModuleLayout: () => ModuleLayout;
+  moduleLayout: ModuleLayout;
 }
 
-export const DetectorBase: React.FC<DetectorBaseProps> = ({ data, extents, initializeModuleLayout }) => {
+export const DetectorBase: React.FC<DetectorBaseProps> = ({ data, extents, moduleLayout }) => {
   const dynamicStyles = useStyles2(getDetectorDynamicStyles(data));
   const staticStyles = useStyles2(getDetectorStaticStyles());
+  const { selectedArrays, selectedNetworks } = data.displayData;
 
-  // Contains all required information to construct the module but no rendering occurs here
-  const moduleLayout = initializeModuleLayout();
-
-  if (!moduleLayout) {
-    return <div>Error loading layout...</div>;
-  }
-
-  // TODO: Build hexagons here
   const initialModuleData = generateModuleLayout(moduleLayout, extents);
-  const initialSensorData = generateInitialSensorLayout(moduleLayout, extents);
+  const initialSensorData = generateInitialSensorLayout(moduleLayout, extents, selectedArrays, selectedNetworks);
   const mappedSensorData = updateSensorDataWithMapping(initialSensorData, data.mappingData, data.variableData);
   const finalSensorData = updateSensorColorsAndText(
     mappedSensorData,
-    data.measurementData,
+    data.measurements,
     data.colorData,
     data.variableData.normalized
   );
 
   return (
     <g className={dynamicStyles.detector}>
-      {initialModuleData.map((hexagon) => (
+      {initialModuleData.map((hexagon, index) => (
         <polygon
-          key={hexagon.id}
+          key={index}
           points={hexagon.points}
           className={cx(dynamicStyles.detector, staticStyles.outline)}
           stroke={hexagon.color}
@@ -65,9 +58,9 @@ export const DetectorBase: React.FC<DetectorBaseProps> = ({ data, extents, initi
   );
 };
 
-const generateModuleLayout = (moduleLayout: ModuleLayout, detectorExtents: { x: number; y: number; }): HexagonData[] => {
+const generateModuleLayout = (moduleLayout: ModuleLayout, detectorExtents: { x: number; y: number }): HexagonData[] => {
   return moduleLayout.hexagons.map((hexagon) => ({
-    id: hexagon.name,
+    name: hexagon.name,
     center: { x: hexagon.center[0], y: hexagon.center[1] },
     radius: hexagon.radius,
     color: hexagon.color,
@@ -75,24 +68,30 @@ const generateModuleLayout = (moduleLayout: ModuleLayout, detectorExtents: { x: 
       { x: hexagon.center[0], y: hexagon.center[1] },
       hexagon.radius,
       moduleLayout.moduleExtents,
-      detectorExtents,
+      detectorExtents
     ),
   }));
 };
 
-const generateInitialSensorLayout = (moduleLayout: ModuleLayout, detectorExtents: { x: number; y: number; }): SensorData[] => {
+const generateInitialSensorLayout = (
+  moduleLayout: ModuleLayout,
+  detectorExtents: { x: number; y: number },
+  selectedArrays: string[],
+  selectedNetworks: string[]
+): SensorData[] => {
   let sensorData: SensorData[] = [];
 
-  moduleLayout.hexagons.forEach((hexagon) => {
-    hexagon.networks.forEach((network) => {
-      // TODO: Need to scale sensor radius here as well
+  const scaledSensorRadii = scaleRadius(moduleLayout.sensorRadii, moduleLayout.moduleExtents, detectorExtents);
+  const filteredHexagons = moduleLayout.hexagons.filter((hexagon) => selectedArrays.includes(hexagon.name));
+  filteredHexagons.forEach((hexagon) => {
+    const filteredNetworks = hexagon.networks.filter((network) => selectedNetworks.includes(network.name));
+    filteredNetworks.forEach((network) => {
       const scaledCoords = scaleCoordinates(
         network.sensors.map((sensor) => sensor.position),
         moduleLayout.moduleExtents,
-        detectorExtents,
+        detectorExtents
       );
       network.sensors.forEach((sensor, sensorIndex) => {
-        // TODO: Will need to assign each sensor an appropriate network
         sensorData.push({
           id: sensor.id,
           scaledPosition: scaledCoords[sensorIndex],
@@ -100,7 +99,7 @@ const generateInitialSensorLayout = (moduleLayout: ModuleLayout, detectorExtents
           rotation: sensor.rotation,
           sweepFlag: sensor.sweepFlag,
           isDark: sensor.isDark,
-          radius: sensor.radius,
+          radius: scaledSensorRadii,
           channel: sensor.id,
           sensorLink: '',
           isActive: false,
@@ -144,11 +143,10 @@ const updateSensorDataWithMapping = (
 
 const updateSensorColorsAndText = (
   sensorData: SensorData[],
-  measurementData: DetectorMeasurementData,
+  measurements: number[],
   colorData: DetectorColorData,
   normalized: boolean
 ): SensorData[] => {
-  const { measurements } = measurementData;
   const { colorBar, minMeasurement, maxMeasurement } = colorData;
 
   return sensorData.map((sensor, index) => {

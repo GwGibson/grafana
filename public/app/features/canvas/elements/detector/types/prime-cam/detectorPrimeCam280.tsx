@@ -1,7 +1,7 @@
 import { DetectorData } from '../../detector';
 import { DetectorBase } from '../detectorBase';
 
-import { initializePrimeCamModule } from './modulePrimeCam280';
+import { MODULE_LAYOUT_PRIMECAM280 } from './modulePrimeCam280';
 
 export const DetectorPrimeCam280 = ({
   data,
@@ -13,5 +13,5 @@ export const DetectorPrimeCam280 = ({
     y: number;
   };
 }) => {
-  return <DetectorBase data={data} extents={extents} initializeModuleLayout={initializePrimeCamModule} />;
+  return <DetectorBase data={data} extents={extents} moduleLayout={MODULE_LAYOUT_PRIMECAM280} />;
 };

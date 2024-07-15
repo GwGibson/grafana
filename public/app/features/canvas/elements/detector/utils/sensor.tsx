@@ -57,10 +57,10 @@ export const Sensor = ({
           <tspan x={DETECTOR_EXTENTS.x / 2} dy="0">
             ID: {id} | Channel: {channel}
           </tspan>
-          <tspan x={DETECTOR_EXTENTS.x / 2} dy="1.2em" style={{ fill: textFillColor }}>{`(${text})`}</tspan>
           <tspan x={DETECTOR_EXTENTS.x / 2} dy="1.2em">
             ({unscaledPosition[0]}, {unscaledPosition[1]})
           </tspan>
+          <tspan x={DETECTOR_EXTENTS.x / 2} dy="1.2em" style={{ fill: textFillColor }}>{`(${text})`}</tspan>
         </text>
       )}
     </g>
