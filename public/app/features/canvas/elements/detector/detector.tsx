@@ -271,12 +271,12 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
   },
 };
 
-export const getDetectorDynamicStyles = (data: DetectorData | undefined) => (theme: GrafanaTheme2) => ({
+export const getDetectorDynamicStyles = (data: DetectorData) => (theme: GrafanaTheme2) => ({
   detector: css({
     fill:
-      (data?.measurements ?? []).length > 0
+      (data.measurements ?? []).length > 0
         ? 'white'
-        : ColorBarData[data?.colorData.colorBar ?? getDefaultColorBar()].scheme.invalidColor,
+        : ColorBarData[data.colorData.colorBar ?? getDefaultColorBar()].scheme.invalidColor,
   }),
   sensor: css({
     fillOpacity: '1',

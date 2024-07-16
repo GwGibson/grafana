@@ -1,5 +1,5 @@
 import { cx } from '@emotion/css';
-import React from 'react';
+import React, { useMemo } from 'react';
 
 import { useStyles2 } from '@grafana/ui';
 
@@ -29,9 +29,20 @@ export const DetectorBase: React.FC<DetectorBaseProps> = ({ data, extents, modul
   const staticStyles = useStyles2(getDetectorStaticStyles());
   const { selectedArrays, selectedNetworks } = data.displayData;
 
-  const initialModuleData = generateModuleLayout(moduleLayout, extents);
-  const initialSensorData = generateInitialSensorLayout(moduleLayout, extents, selectedArrays, selectedNetworks);
-  const mappedSensorData = updateSensorDataWithMapping(initialSensorData, data.mappingData, data.variableData);
+  // TODO: These memo's probably don't work as expected. I think references will be different here 
+  // as Grafana seems to mount/unmount each refresh. Need more testing.
+  const initialModuleData = useMemo(() => generateModuleLayout(moduleLayout, extents), [moduleLayout, extents]);
+
+  const initialSensorData = useMemo(
+    () => generateInitialSensorLayout(moduleLayout, extents, selectedArrays, selectedNetworks),
+    [moduleLayout, extents, selectedArrays, selectedNetworks]
+  );
+
+  const mappedSensorData = useMemo(
+    () => updateSensorDataWithMapping(initialSensorData, data.mappingData, data.variableData),
+    [initialSensorData, data.mappingData, data.variableData]
+  );
+  
   const finalSensorData = updateSensorColorsAndText(
     mappedSensorData,
     data.measurements,
@@ -104,7 +115,7 @@ const generateInitialSensorLayout = (
           sensorLink: '',
           isActive: false,
           fillColor: 'black',
-          text: '(Inactive)',
+          text: 'Inactive',
           textFillColor: 'red',
         });
       });
@@ -155,7 +166,7 @@ const updateSensorColorsAndText = (
       const [fillColor, activeTextFillColor] = [false, true].map((isText) =>
         getColor(measurements, sensor.channel, colorBar, minMeasurement, maxMeasurement, normalized, isText ? 1 : 8)
       );
-      const text = isActive ? measurements[sensor.channel].toFixed(2) : '(Inactive)';
+      const text = isActive ? measurements[sensor.channel].toFixed(2) : 'Inactive';
       const textFillColor = isActive ? activeTextFillColor : 'red';
 
       return {
