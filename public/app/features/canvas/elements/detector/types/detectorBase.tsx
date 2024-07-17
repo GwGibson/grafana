@@ -159,7 +159,7 @@ const updateSensorColorsAndText = (
   normalized: boolean
 ): SensorData[] => {
   const { colorBar, minMeasurement, maxMeasurement } = colorData;
-
+  
   return sensorData.map((sensor, index) => {
     if (index < measurements.length) {
       const isActive = sensor.channel < measurements.length;

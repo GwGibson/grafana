@@ -10,7 +10,15 @@ import { ScalarFieldDimensionEditor } from 'app/features/dimensions/editors';
 
 import { CanvasElementItem, CanvasElementOptions, CanvasElementProps } from '../../element';
 
-import { ColorBar, ColorBarData, ColorBarDisplay, colorBarOptions, getDefaultColorBar } from './colorbar/colorbar';
+import {
+  ColorBar,
+  ColorBarData,
+  ColorBarDisplay,
+  colorBarOptions,
+  getDefaultColorBar,
+  NORMALIZED_MAX,
+  NORMALIZED_MIN,
+} from './colorbar/colorbar';
 import { DetectorArrayEditor, DetectorNetworkEditor } from './detectorEditors';
 import { DETECTOR_EXTENTS, DETECTOR_LAYOUT } from './layout';
 import { DetectorType, detectorOptions, getDetectorComponent, getDefaultDetectorType } from './types/moduleInfo';
@@ -171,14 +179,18 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
     const normalized = ((value) => value === 'true' || value === '$normalized')(
       getTemplateSrv().replace('$normalized')
     );
-
     const colorBar = config.colorBar;
-    const minMeasurement = ((value) => (!isNaN(parseFloat(value)) ? parseFloat(value) : -1))(
-      getTemplateSrv().replace('$minimum')
-    );
-    const maxMeasurement = ((value) => (!isNaN(parseFloat(value)) ? parseFloat(value) : 1))(
-      getTemplateSrv().replace('$maximum')
-    );
+    const minMeasurement = normalized
+      ? NORMALIZED_MIN
+      : ((value) => (!isNaN(parseFloat(value)) ? parseFloat(value) : NORMALIZED_MIN))(
+          getTemplateSrv().replace('$minimum')
+        );
+
+    const maxMeasurement = normalized
+      ? NORMALIZED_MAX
+      : ((value) => (!isNaN(parseFloat(value)) ? parseFloat(value) : NORMALIZED_MAX))(
+          getTemplateSrv().replace('$maximum')
+        );
 
     const baseURL = config.baseURL || '';
     // Only update channelMapping & paddedSensorIds if the channel mapping input has changed.

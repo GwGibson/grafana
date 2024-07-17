@@ -6,6 +6,9 @@ import { usePanelContext, useStyles2 } from '@grafana/ui';
 
 import { COLOR_SCALE_SIZE, ColorBarScheme, cividis, coolwarm, hot, plasma, viridis } from './colorSchemes';
 
+export const NORMALIZED_MIN = -1;
+export const NORMALIZED_MAX = 1;
+
 export const ColorBarData: Record<string, { label: string; scheme: ColorBarScheme }> = {
   cividis: { label: 'Cividis', scheme: cividis },
   viridis: { label: 'Viridis', scheme: viridis },
@@ -38,26 +41,26 @@ export const getColor = (
   }
 
   const measurement = measurements[index];
-  // Assuming colorBarMin is -1 and colorBarMax is 1 here!
-  // This may not work properly if the normalized min and max are changed.
-  // Non normalized measurements should not be subject to out of range coloring.
   if (measurement < colorBarMin) {
+    // Assuming colorBarMin is negative here
     return allowOutOfRange && measurement < colorBarMin * outOfRangeFactor ? scheme.lowColor : scheme.colors[0];
   }
   if (measurement > colorBarMax) {
+    // Assuming colorBarMax is positive here
     return allowOutOfRange && measurement > colorBarMax * outOfRangeFactor
       ? scheme.highColor
       : scheme.colors[COLOR_SCALE_SIZE - 1];
   }
-  // Normalize the measurement value to [0, 1]
+  // Normalize the measurement to [0, 1]
   const normalizedMeasurement = (measurement - colorBarMin) / (colorBarMax - colorBarMin);
-  // Scale to the color scale size
-  const scaledIndex = Math.round(normalizedMeasurement * (COLOR_SCALE_SIZE - 1));
-  return scheme.colors[scaledIndex];
+  const scaledIndex = Math.floor(normalizedMeasurement * COLOR_SCALE_SIZE);
+  // Ensuring we don't go out of bounds (probably not necessary)
+  const clampedIndex = Math.max(0, Math.min(scaledIndex, COLOR_SCALE_SIZE - 1));
+  return scheme.colors[clampedIndex];
 };
 
 export interface ColorbarDisplayProps {
-  colorBar: string;
+  colorBar: ColorBar;
   minMeasurement: number;
   maxMeasurement: number;
   normalized: boolean;
