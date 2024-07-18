@@ -283,19 +283,19 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
   },
 };
 
-export const getDetectorDynamicStyles = (data: DetectorData) => (theme: GrafanaTheme2) => ({
+// Not used but should consider using this when time allows for aesthetic enhancements
+export const getDetectorDynamicStyles = (validMeasurements: boolean, colorBar: ColorBar) => (theme: GrafanaTheme2) => ({
   detector: css({
-    fill:
-      (data.measurements ?? []).length > 0
-        ? 'white'
-        : ColorBarData[data.colorData.colorBar ?? getDefaultColorBar()].scheme.invalidColor,
+    // TBD
   }),
   sensor: css({
     fillOpacity: '1',
-    stroke:
-      (data?.measurements ?? []).length > 0
-        ? theme.colors.background.primary
-        : ColorBarData[data?.colorData.colorBar ?? getDefaultColorBar()].scheme.invalidColor,
+    stroke: validMeasurements ? theme.colors.background.primary : ColorBarData[colorBar].scheme.invalidColor,
+    strokeWidth: theme.spacing(0.1),
+  }),
+  darkSensor: css({
+    fillOpacity: '1',
+    stroke: 'black',
     strokeWidth: theme.spacing(0.1),
   }),
 });

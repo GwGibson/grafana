@@ -19,7 +19,7 @@ export const updateChannelMapping = (
   channelMapping: number[];
   paddedSensorIds: string[];
 } => {
-  const lastMappingConfigs = config.lastMappingConfigs;
+  const lastMappingConfigs = config.lastMappingConfigs ?? '';
   const currentChannelMappingInput = config.channelMappingInput ?? '';
   const lastChannelMappingInput = lastMappingConfigs.channelMappingInput ?? '';
 

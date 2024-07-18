@@ -8,7 +8,7 @@ import { TIN_HEXAGON } from './tinHexagon';
 
 export const MODULE_LAYOUT_PRIMECAM280: ModuleLayout = {
   sensorRadii: 1000,
-  moduleExtents: { x: 150000, y: 150000 },
+  moduleExtents: { x: 140000, y: 140000 },
   hexagons: [TIN_HEXAGON],
 };
 

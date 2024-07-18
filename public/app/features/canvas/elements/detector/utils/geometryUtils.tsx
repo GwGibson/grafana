@@ -3,7 +3,7 @@ export const createHexagonPoints = (
   radius: number,
   moduleExtents: { x: number; y: number },
   detectorExtents: { x: number; y: number },
-  rotate90 = false
+  rotate = false
 ) => {
   const scaleX = detectorExtents.x / moduleExtents.x;
   const scaleY = detectorExtents.y / moduleExtents.y;
@@ -17,10 +17,10 @@ export const createHexagonPoints = (
     x: center.x * scale + offsetX,
     y: center.y * scale + offsetY,
   };
-  const scaledRadius = radius * scale / 2;
+  const scaledRadius = (radius * scale) / 2;
 
   const hexagonPoints = Array.from({ length: 6 }).map((_, index) => {
-    const angle = (Math.PI / 3) * index - (rotate90 ? Math.PI / 2 : 0);
+    const angle = (Math.PI / 3) * index - (rotate ? Math.PI / 2 : 0);
     return {
       x: scaledCenter.x + scaledRadius * Math.cos(angle),
       y: scaledCenter.y + scaledRadius * Math.sin(angle),
@@ -47,7 +47,7 @@ export const scaleCoordinates = (
 
   const scaledCoords: Array<[number, number]> = coords.map(([x, y]) => [
     x * scale + centerX,
-    y * scale + centerY,
+    centerY - y * scale, // For traditional x-y orientation
   ]);
 
   return scaledCoords;

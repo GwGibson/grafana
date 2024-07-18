@@ -1,15 +1,13 @@
-import { cx } from '@emotion/css';
-import React, { useMemo } from 'react';
+import React, { useEffect, useRef } from 'react';
 
 import { useStyles2 } from '@grafana/ui';
 
-import { getColor } from '../colorbar/colorbar';
+import { ColorBarData, getColor, getDefaultColorBar } from '../colorbar/colorbar';
 import {
   DetectorColorData,
   DetectorData,
   DetectorMappingData,
   DetectorVariableData,
-  getDetectorDynamicStyles,
   getDetectorStaticStyles,
 } from '../detector';
 import { createHexagonPoints, scaleCoordinates, scaleRadius } from '../utils/geometryUtils';
@@ -25,24 +23,17 @@ interface DetectorBaseProps {
 }
 
 export const DetectorBase: React.FC<DetectorBaseProps> = ({ data, extents, moduleLayout }) => {
-  const dynamicStyles = useStyles2(getDetectorDynamicStyles(data));
   const staticStyles = useStyles2(getDetectorStaticStyles());
   const { selectedArrays, selectedNetworks } = data.displayData;
 
-  // TODO: These memo's probably don't work as expected. I think references will be different here 
-  // as Grafana seems to mount/unmount each refresh. Need more testing.
-  const initialModuleData = useMemo(() => generateModuleLayout(moduleLayout, extents), [moduleLayout, extents]);
+  // TODO: useMemo here probably won't work as expected. I think references will be different here
+  // as Grafana seems to mount/unmount each refresh. Need more testing. Although, these functions
+  // all execute quickly even without the use of explicit memoization. It is the rendering itself
+  // that takes a long time.
 
-  const initialSensorData = useMemo(
-    () => generateInitialSensorLayout(moduleLayout, extents, selectedArrays, selectedNetworks),
-    [moduleLayout, extents, selectedArrays, selectedNetworks]
-  );
-
-  const mappedSensorData = useMemo(
-    () => updateSensorDataWithMapping(initialSensorData, data.mappingData, data.variableData),
-    [initialSensorData, data.mappingData, data.variableData]
-  );
-  
+  const initialModuleData = generateModuleLayout(moduleLayout, extents);
+  const initialSensorData = generateInitialSensorLayout(moduleLayout, extents, selectedArrays, selectedNetworks);
+  const mappedSensorData = updateSensorDataWithMapping(initialSensorData, data.mappingData, data.variableData);
   const finalSensorData = updateSensorColorsAndText(
     mappedSensorData,
     data.measurements,
@@ -50,17 +41,36 @@ export const DetectorBase: React.FC<DetectorBaseProps> = ({ data, extents, modul
     data.variableData.normalized
   );
 
+  // const renderStartTime = useRef<number | null>(null);
+  // useEffect(() => {
+  //   const renderEndTime = performance.now();
+  //   if (renderStartTime.current !== null) {
+  //     const renderDuration = renderEndTime - renderStartTime.current;
+  //     console.log(`Render took ${renderDuration.toFixed(2)} milliseconds`);
+  //   }
+  //   renderStartTime.current = performance.now();
+  // });
+
+  // if (renderStartTime.current === null) {
+  //   renderStartTime.current = performance.now();
+  // }
+
   return (
-    <g className={dynamicStyles.detector}>
+    <g>
       {initialModuleData.map((hexagon, index) => (
         <polygon
           key={index}
           points={hexagon.points}
-          className={cx(dynamicStyles.detector, staticStyles.outline)}
+          className={staticStyles.outline}
           stroke={hexagon.color}
+          fill={
+            (data.measurements ?? []).length > 0
+              ? hexagon.color
+              : ColorBarData[data.colorData.colorBar ?? getDefaultColorBar()].scheme.invalidColor
+          }
         />
       ))}
-      <g className={dynamicStyles.sensor}>
+      <g>
         {finalSensorData.map((sensor) => (
           <Sensor key={sensor.id} configData={sensor} />
         ))}
@@ -79,7 +89,8 @@ const generateModuleLayout = (moduleLayout: ModuleLayout, detectorExtents: { x: 
       { x: hexagon.center[0], y: hexagon.center[1] },
       hexagon.radius,
       moduleLayout.moduleExtents,
-      detectorExtents
+      detectorExtents,
+      hexagon.rotated
     ),
   }));
 };
@@ -159,7 +170,7 @@ const updateSensorColorsAndText = (
   normalized: boolean
 ): SensorData[] => {
   const { colorBar, minMeasurement, maxMeasurement } = colorData;
-  
+
   return sensorData.map((sensor, index) => {
     if (index < measurements.length) {
       const isActive = sensor.channel < measurements.length;

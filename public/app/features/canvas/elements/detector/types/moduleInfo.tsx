@@ -52,6 +52,7 @@ export interface HexagonInfo {
   center: [number, number];
   radius: number;
   color: string;
+  rotated: boolean;
   networks: NetworkInfo[];
 }
 

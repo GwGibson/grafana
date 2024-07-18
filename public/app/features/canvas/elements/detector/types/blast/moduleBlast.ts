@@ -9,6 +9,7 @@ export const MODULE_LAYOUT_BLAST: ModuleLayout = {
       center: [0, 0],
       radius: 95000,
       color: '#C0C0C0',
+      rotated: false,
       networks: [
         {
           name: 'Network 1',
