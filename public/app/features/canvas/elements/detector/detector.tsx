@@ -86,6 +86,8 @@ export const DetectorDisplay: React.FC<CanvasElementProps<DetectorConfig, Detect
       fill="none"
       preserveAspectRatio="xMidYMid meet"
     >
+      <title id="title">Detector Layout</title>
+      <desc id="desc">Visual representation of the detector layout with color-coded sensors</desc>
       <g className={staticStyles.outline}>
         <ColorBarDisplay
           colorBar={data.colorData.colorBar}
@@ -230,6 +232,8 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
         name: 'Type',
         settings: {
           options: detectorOptions,
+          id: 'detector-type-select',
+          label: 'Detector Type Selection',
         },
         defaultValue: getDefaultDetectorType(),
       })
@@ -239,6 +243,8 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
         name: 'Color Theme',
         settings: {
           options: colorBarOptions,
+          id: 'colorbar-type-select',
+          label: 'Colorbar Type Selection',
         },
         defaultValue: getDefaultColorBar(),
       })
@@ -248,6 +254,10 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
         path: 'config.measurements',
         name: 'Measurements',
         description: 'Select a field for the channel measurements.',
+        settings: {
+          id: 'measurement-field-select',
+          label: 'Measurement Field Selector',
+        },
         editor: ScalarFieldDimensionEditor,
       })
       .addTextInput({
@@ -255,6 +265,10 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
         path: 'config.channelMappingInput',
         name: 'Channel Mapping Input',
         description: 'Input channels and they will be mapped to sensor ids in ascending order',
+        settings: {
+          id: 'channel-mapping-input',
+          label: 'Channel Mapping Input',
+        },
       })
       .addCustomEditor({
         category,
@@ -262,6 +276,10 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
         path: 'config.arrays',
         name: 'Sensor Arrays',
         description: 'Select sensor arrays to display',
+        settings: {
+          id: 'sensor-array-select',
+          label: 'Sensor Array Selector',
+        },
         editor: DetectorArrayEditor,
         defaultValue: [],
       })
@@ -271,6 +289,10 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
         path: 'config.networks',
         name: 'Networks',
         description: 'Select networks to display',
+        settings: {
+          id: 'network-select',
+          label: 'Network Selector',
+        },
         editor: DetectorNetworkEditor,
         defaultValue: [],
       })
@@ -279,6 +301,10 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
         path: 'config.baseURL',
         name: 'Base URL',
         description: 'Input the base URL to the time series panel.',
+        settings: {
+          id: 'base-url-input',
+          label: 'Base URL Input',
+        },
       });
   },
 };

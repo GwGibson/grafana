@@ -41,19 +41,19 @@ export const DetectorBase: React.FC<DetectorBaseProps> = ({ data, extents, modul
     data.variableData.normalized
   );
 
-  // const renderStartTime = useRef<number | null>(null);
-  // useEffect(() => {
-  //   const renderEndTime = performance.now();
-  //   if (renderStartTime.current !== null) {
-  //     const renderDuration = renderEndTime - renderStartTime.current;
-  //     console.log(`Render took ${renderDuration.toFixed(2)} milliseconds`);
-  //   }
-  //   renderStartTime.current = performance.now();
-  // });
+  const renderStartTime = useRef<number | null>(null);
+  useEffect(() => {
+    const renderEndTime = performance.now();
+    if (renderStartTime.current !== null) {
+      const renderDuration = renderEndTime - renderStartTime.current;
+      console.log(`Render took ${renderDuration.toFixed(2)} milliseconds`);
+    }
+    renderStartTime.current = performance.now();
+  });
 
-  // if (renderStartTime.current === null) {
-  //   renderStartTime.current = performance.now();
-  // }
+  if (renderStartTime.current === null) {
+    renderStartTime.current = performance.now();
+  }
 
   return (
     <g>

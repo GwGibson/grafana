@@ -36,12 +36,13 @@ export const Sensor: React.FC<{ configData: SensorProps }> = ({ configData }) =>
 
   const [x, y] = configData.scaledPosition;
   const radius = configData.radius;
-  const strokeWidth = radius / 22;
   const transform = `rotate(${configData.rotation}, ${x}, ${y})`;
   const dPath = `M ${x - radius} ${y} A ${radius} ${radius} 0 0 ${configData.sweepFlag} ${x + radius} ${y} L ${x} ${y} Z`;
 
   // Define the stroke color and width based on isDark property
-  const strokeColor = configData.isDark ? 'black' : configData.fillColor;
+  // TODO: Need to improve this
+  const strokeWidth = radius / 32;
+  const strokeColor = configData.isDark ? 'brown' : 'black';
 
   const sensorElement = (
     <g onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
