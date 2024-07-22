@@ -21,7 +21,11 @@ import {
 } from './colorbar/colorbar';
 import { DetectorArrayEditor, DetectorNetworkEditor } from './detectorEditors';
 import { DETECTOR_EXTENTS, DETECTOR_LAYOUT } from './layout';
-import { getBaseComponent, getSensorComponent } from './types/detectorComponentFactory';
+import {
+  getBaseComponent,
+  getSensorRenderComponent,
+  getSensorDisplayComponent,
+} from './types/detectorComponentFactory';
 import { DetectorType, detectorOptions, getDefaultDetectorType } from './types/moduleUtils';
 import { updateChannelMapping } from './utils/sensorUtils';
 
@@ -89,11 +93,11 @@ export const DetectorDisplay: React.FC<CanvasElementProps<DetectorConfig, Detect
   }
 
   const BaseComponent = getBaseComponent(data.detectorType as DetectorType);
-  const SensorComponent = getSensorComponent(data.detectorType as DetectorType);
+  const SensorComponent = data.renderMode
+    ? getSensorRenderComponent(data.detectorType as DetectorType)
+    : getSensorDisplayComponent(data.detectorType as DetectorType);
 
   return (
-    <div style={{ position: 'relative', width: DETECTOR_LAYOUT.VIEWBOX.WIDTH, height: DETECTOR_LAYOUT.VIEWBOX.HEIGHT }}>
-      {/* SVG layer for colorbar and module base components */}
       <svg
         viewBox={`-10 -10 ${DETECTOR_LAYOUT.VIEWBOX.WIDTH} ${DETECTOR_LAYOUT.VIEWBOX.HEIGHT}`}
         fill="none"
@@ -116,16 +120,17 @@ export const DetectorDisplay: React.FC<CanvasElementProps<DetectorConfig, Detect
             }}
           />
           <BaseComponent
-            measurements={data.measurements}
+            numMeasurements={data.measurements.length}
             colorBar={data.colorData.colorBar}
             extents={DETECTOR_EXTENTS}
           />
-          <SensorComponent data={data} extents={DETECTOR_EXTENTS} />
+          {!data.renderMode && <SensorComponent data={data} extents={DETECTOR_EXTENTS} />}
         </g>
       </svg>
-    </div>
   );
 };
+
+      // {data.renderMode && <SensorComponent data={data} extents={DETECTOR_EXTENTS} />}
 
 export const DEFAULT_DETECTOR_SETTINGS = {
   TYPE: getDefaultDetectorType(),

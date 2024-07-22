@@ -9,7 +9,7 @@ import { createHexagonPoints } from '../utils/geometryUtils';
 import { HexagonData, ModuleLayout } from './moduleUtils';
 
 export interface BaseDisplayProps {
-  measurements: number[];
+  numMeasurements: number;
   colorBar: string;
   extents: { x: number; y: number };
 }
@@ -18,7 +18,7 @@ export interface BaseComponentProps extends BaseDisplayProps {
   moduleLayout: ModuleLayout;
 }
 
-export const BaseComponent: React.FC<BaseComponentProps> = ({ measurements, colorBar, extents, moduleLayout }) => {
+export const BaseComponent: React.FC<BaseComponentProps> = ({ numMeasurements, colorBar, extents, moduleLayout }) => {
   const staticStyles = useStyles2(getDetectorStaticStyles());
 
   const initialModuleData = generateModuleLayout(moduleLayout, extents);
@@ -45,7 +45,7 @@ export const BaseComponent: React.FC<BaseComponentProps> = ({ measurements, colo
           points={hexagon.points}
           className={staticStyles.outline}
           stroke={hexagon.color}
-          fill={measurements.length > 0 ? hexagon.color : ColorBarData[colorBar].scheme.invalidColor}
+          fill={numMeasurements > 0 ? hexagon.color : ColorBarData[colorBar].scheme.invalidColor}
         />
       ))}
     </g>
