@@ -1,9 +1,32 @@
 import { DetectorData } from '../../detector';
-import { DetectorBase } from '../detectorBase';
+import { BaseComponent } from '../baseComponent';
+import { SensorComponent } from '../sensorComponent';
 
 import { MODULE_LAYOUT_PRIMECAM280 } from './modulePrimeCam280';
 
-export const DetectorPrimeCam280 = ({
+export const BaseComponentPrimeCam280 = ({
+  measurements,
+  colorBar,
+  extents,
+}: {
+  measurements: number[];
+  colorBar: string;
+  extents: {
+    x: number;
+    y: number;
+  };
+}) => {
+  return (
+    <BaseComponent
+      measurements={measurements}
+      colorBar={colorBar}
+      extents={extents}
+      moduleLayout={MODULE_LAYOUT_PRIMECAM280}
+    />
+  );
+};
+
+export const SensorComponentPrimeCam280 = ({
   data,
   extents,
 }: {
@@ -13,5 +36,5 @@ export const DetectorPrimeCam280 = ({
     y: number;
   };
 }) => {
-  return <DetectorBase data={data} extents={extents} moduleLayout={MODULE_LAYOUT_PRIMECAM280} />;
+  return <SensorComponent data={data} extents={extents} moduleLayout={MODULE_LAYOUT_PRIMECAM280} />;
 };

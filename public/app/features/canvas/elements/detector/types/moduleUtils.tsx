@@ -1,31 +1,7 @@
-import { DetectorData } from '../detector';
-
-import { DetectorBlast } from './blast/detectorBlast';
-import { SENSOR_ARRAY_CONFIG_BLAST } from './blast/moduleBlast';
-import { DetectorPrimeCam280 } from './prime-cam/detectorPrimeCam280';
-import { SENSOR_ARRAY_CONFIG_PRIMECAM280 } from './prime-cam/modulePrimeCam280';
-
-// For dashboard array & network options
-// Not ideal as this must be updated each time a new detector is added
-export const ModuleData: Record<
-  string,
-  {
-    label: string;
-    component: DetectorComponent;
-    arrays: SensorArray[];
-  }
-> = {
-  BLAST: {
-    label: 'BLAST',
-    component: DetectorBlast,
-    arrays: SENSOR_ARRAY_CONFIG_BLAST,
-  },
-  'PRIMECAM-280': {
-    label: 'PRIMECAM-280',
-    component: DetectorPrimeCam280,
-    arrays: SENSOR_ARRAY_CONFIG_PRIMECAM280,
-  },
-};
+import { ModuleData } from './detectorComponentFactory';
+// For PRIMECAM280, 3 sensor arrays, 6 networks and 1 for 'all' option.
+// Also needs to manually updated if a new detector with more networks is added.
+export const MAX_NETWORK_VALUES = 3 * 6 + 1;
 
 export interface SensorArray {
   name: string;
@@ -36,9 +12,6 @@ export const detectorOptions = Object.entries(ModuleData).map(([key, value]) => 
   value: key as DetectorType,
   label: value.label,
 }));
-
-// For PRIMECAM280, 3 sensor arrays, 6 networks and 1 for 'all' option.
-export const MAX_NETWORK_VALUES = 3 * 6 + 1;
 
 // For dashboard display
 export interface ModuleLayout {
@@ -99,22 +72,11 @@ export interface SensorData {
   textFillColor: string;
 }
 
-interface DetectorDisplayProps {
-  data: DetectorData;
-  extents: {
-    x: number;
-    y: number;
-  };
-}
-
 export type DetectorType = keyof typeof ModuleData;
-type DetectorComponent = React.FC<DetectorDisplayProps>;
 
 export const getDetectorTypeKey = (key: DetectorType): DetectorType => key;
 
 export const getDefaultDetectorType = (): DetectorType => 'BLAST';
-
-export const getDetectorComponent = (type: DetectorType): DetectorComponent => ModuleData[type].component;
 
 export const getArraysForDetector = (type: DetectorType): string[] =>
   ModuleData[type].arrays.map((array) => array.name);

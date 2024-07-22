@@ -1,4 +1,4 @@
-import { ModuleLayout } from '../moduleInfo';
+import { ModuleLayout } from '../moduleUtils';
 
 import { TIN_HEXAGON } from './tinHexagon';
 

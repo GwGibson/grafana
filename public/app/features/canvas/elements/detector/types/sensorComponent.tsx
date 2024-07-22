@@ -1,37 +1,24 @@
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 
-import { useStyles2 } from '@grafana/ui';
-
-import { ColorBarData, getColor, getDefaultColorBar } from '../colorbar/colorbar';
-import {
-  DetectorColorData,
-  DetectorData,
-  DetectorMappingData,
-  DetectorVariableData,
-  getDetectorStaticStyles,
-} from '../detector';
-import { createHexagonPoints, scaleCoordinates, scaleRadius } from '../utils/geometryUtils';
+import { getColor } from '../colorbar/colorbar';
+import { DetectorColorData, DetectorData, DetectorMappingData, DetectorVariableData } from '../detector';
+import { scaleCoordinates, scaleRadius } from '../utils/geometryUtils';
 import { Sensor } from '../utils/sensor';
 import { generateSensorLink } from '../utils/sensorUtils';
 
-import { HexagonData, ModuleLayout, SensorData } from './moduleInfo';
+import { ModuleLayout, SensorData } from './moduleUtils';
 
-interface DetectorBaseProps {
+export interface SensorDisplayProps {
   data: DetectorData;
   extents: { x: number; y: number };
+}
+
+export interface SensorComponentProps extends SensorDisplayProps {
   moduleLayout: ModuleLayout;
 }
 
-export const DetectorBase: React.FC<DetectorBaseProps> = ({ data, extents, moduleLayout }) => {
-  const staticStyles = useStyles2(getDetectorStaticStyles());
+export const SensorComponent: React.FC<SensorComponentProps> = ({ data, extents, moduleLayout }) => {
   const { selectedArrays, selectedNetworks } = data.displayData;
-
-  // TODO: useMemo here probably won't work as expected. I think references will be different here
-  // as Grafana seems to mount/unmount each refresh. Need more testing. Although, these functions
-  // all execute quickly even without the use of explicit memoization. It is the rendering itself
-  // that takes a long time.
-
-  const initialModuleData = generateModuleLayout(moduleLayout, extents);
   const initialSensorData = generateInitialSensorLayout(moduleLayout, extents, selectedArrays, selectedNetworks);
   const mappedSensorData = updateSensorDataWithMapping(initialSensorData, data.mappingData, data.variableData);
   const finalSensorData = updateSensorColorsAndText(
@@ -41,58 +28,13 @@ export const DetectorBase: React.FC<DetectorBaseProps> = ({ data, extents, modul
     data.variableData.normalized
   );
 
-  const renderStartTime = useRef<number | null>(null);
-  useEffect(() => {
-    const renderEndTime = performance.now();
-    if (renderStartTime.current !== null) {
-      const renderDuration = renderEndTime - renderStartTime.current;
-      console.log(`Render took ${renderDuration.toFixed(2)} milliseconds`);
-    }
-    renderStartTime.current = performance.now();
-  });
-
-  if (renderStartTime.current === null) {
-    renderStartTime.current = performance.now();
-  }
-
   return (
     <g>
-      {initialModuleData.map((hexagon, index) => (
-        <polygon
-          key={index}
-          points={hexagon.points}
-          className={staticStyles.outline}
-          stroke={hexagon.color}
-          fill={
-            (data.measurements ?? []).length > 0
-              ? hexagon.color
-              : ColorBarData[data.colorData.colorBar ?? getDefaultColorBar()].scheme.invalidColor
-          }
-        />
+      {finalSensorData.map((sensor) => (
+        <Sensor key={sensor.id} configData={sensor} />
       ))}
-      <g>
-        {finalSensorData.map((sensor) => (
-          <Sensor key={sensor.id} configData={sensor} />
-        ))}
-      </g>
     </g>
   );
-};
-
-const generateModuleLayout = (moduleLayout: ModuleLayout, detectorExtents: { x: number; y: number }): HexagonData[] => {
-  return moduleLayout.hexagons.map((hexagon) => ({
-    name: hexagon.name,
-    center: { x: hexagon.center[0], y: hexagon.center[1] },
-    radius: hexagon.radius,
-    color: hexagon.color,
-    points: createHexagonPoints(
-      { x: hexagon.center[0], y: hexagon.center[1] },
-      hexagon.radius,
-      moduleLayout.moduleExtents,
-      detectorExtents,
-      hexagon.rotated
-    ),
-  }));
 };
 
 const generateInitialSensorLayout = (

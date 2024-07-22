@@ -1,4 +1,4 @@
-import { ModuleLayout } from '../moduleInfo';
+import { ModuleLayout } from '../moduleUtils';
 
 export const MODULE_LAYOUT_BLAST: ModuleLayout = {
   sensorRadii: 1200,

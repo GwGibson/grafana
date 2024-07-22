@@ -1,9 +1,32 @@
 import { DetectorData } from '../../detector';
-import { DetectorBase } from '../detectorBase';
+import { BaseComponent } from '../baseComponent';
+import { SensorComponent } from '../sensorComponent';
 
 import { MODULE_LAYOUT_BLAST } from './moduleBlast';
 
-export const DetectorBlast = ({
+export const BaseComponentBlast = ({
+  measurements,
+  colorBar,
+  extents,
+}: {
+  measurements: number[];
+  colorBar: string;
+  extents: {
+    x: number;
+    y: number;
+  };
+}) => {
+  return (
+    <BaseComponent
+      measurements={measurements}
+      colorBar={colorBar}
+      extents={extents}
+      moduleLayout={MODULE_LAYOUT_BLAST}
+    />
+  );
+};
+
+export const SensorComponentBlast = ({
   data,
   extents,
 }: {
@@ -13,5 +36,5 @@ export const DetectorBlast = ({
     y: number;
   };
 }) => {
-  return <DetectorBase data={data} extents={extents} moduleLayout={MODULE_LAYOUT_BLAST} />;
+  return <SensorComponent data={data} extents={extents} moduleLayout={MODULE_LAYOUT_BLAST} />;
 };

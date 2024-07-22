@@ -1,4 +1,4 @@
-import { HexagonInfo, SensorInfo } from '../moduleInfo';
+import { HexagonInfo, SensorInfo } from '../moduleUtils';
 
 const TIN_SENSORS_1: SensorInfo[] = [
   { id: 1, position: [-58050.77, 32484.37], rotation: 0, sweepFlag: 0, isDark: false },

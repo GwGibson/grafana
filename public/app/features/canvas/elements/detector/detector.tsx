@@ -21,10 +21,13 @@ import {
 } from './colorbar/colorbar';
 import { DetectorArrayEditor, DetectorNetworkEditor } from './detectorEditors';
 import { DETECTOR_EXTENTS, DETECTOR_LAYOUT } from './layout';
-import { DetectorType, detectorOptions, getDetectorComponent, getDefaultDetectorType } from './types/moduleInfo';
+import { getBaseComponent, getSensorComponent } from './types/detectorComponentFactory';
+import { DetectorType, detectorOptions, getDefaultDetectorType } from './types/moduleUtils';
 import { updateChannelMapping } from './utils/sensorUtils';
 
 export interface DetectorData {
+  // True -> render mode, False -> display mode
+  renderMode: boolean;
   detectorType: DetectorType;
   measurements: number[];
   displayData: DetectorDisplayData;
@@ -58,6 +61,7 @@ export interface DetectorVariableData {
 }
 
 export interface DetectorConfig {
+  renderMode: boolean;
   detectorType: DetectorType;
   measurements?: ScalarDimensionConfig;
   arrays: string[];
@@ -80,36 +84,47 @@ export const DetectorDisplay: React.FC<CanvasElementProps<DetectorConfig, Detect
   const { data } = props;
   const staticStyles = useStyles2(getDetectorStaticStyles());
 
-  return data ? (
-    <svg
-      viewBox={`-10 -10 ${DETECTOR_LAYOUT.VIEWBOX.WIDTH} ${DETECTOR_LAYOUT.VIEWBOX.HEIGHT}`}
-      fill="none"
-      preserveAspectRatio="xMidYMid meet"
-    >
-      <title id="title">Detector Layout</title>
-      <desc id="desc">Visual representation of the detector layout with color-coded sensors</desc>
-      <g className={staticStyles.outline}>
-        <ColorBarDisplay
-          colorBar={data.colorData.colorBar}
-          minMeasurement={data.colorData.minMeasurement}
-          maxMeasurement={data.colorData.maxMeasurement}
-          normalized={data.variableData.normalized}
-          dimensions={{
-            x: DETECTOR_LAYOUT.COLORBAR.X,
-            y: DETECTOR_LAYOUT.COLORBAR.Y,
-            width: DETECTOR_LAYOUT.COLORBAR.WIDTH,
-            height: DETECTOR_LAYOUT.COLORBAR.HEIGHT,
-          }}
-        />
-        {data &&
-          data.detectorType &&
-          (() => {
-            const DetectorComponent = getDetectorComponent(data.detectorType as DetectorType);
-            return <DetectorComponent data={data} extents={DETECTOR_EXTENTS} />;
-          })()}
-      </g>
-    </svg>
-  ) : null;
+  if (!data) {
+    return null;
+  }
+
+  const BaseComponent = getBaseComponent(data.detectorType as DetectorType);
+  const SensorComponent = getSensorComponent(data.detectorType as DetectorType);
+
+  return (
+    <div style={{ position: 'relative', width: DETECTOR_LAYOUT.VIEWBOX.WIDTH, height: DETECTOR_LAYOUT.VIEWBOX.HEIGHT }}>
+      {/* SVG layer for colorbar and module base components */}
+      <svg
+        viewBox={`-10 -10 ${DETECTOR_LAYOUT.VIEWBOX.WIDTH} ${DETECTOR_LAYOUT.VIEWBOX.HEIGHT}`}
+        fill="none"
+        preserveAspectRatio="xMidYMid meet"
+        style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
+      >
+        <title id="title">Detector Layout</title>
+        <desc id="desc">Visual representation of the detector layout with color-coded sensors</desc>
+        <g className={staticStyles.outline}>
+          <ColorBarDisplay
+            colorBar={data.colorData.colorBar}
+            minMeasurement={data.colorData.minMeasurement}
+            maxMeasurement={data.colorData.maxMeasurement}
+            normalized={data.variableData.normalized}
+            dimensions={{
+              x: DETECTOR_LAYOUT.COLORBAR.X,
+              y: DETECTOR_LAYOUT.COLORBAR.Y,
+              width: DETECTOR_LAYOUT.COLORBAR.WIDTH,
+              height: DETECTOR_LAYOUT.COLORBAR.HEIGHT,
+            }}
+          />
+          <BaseComponent
+            measurements={data.measurements}
+            colorBar={data.colorData.colorBar}
+            extents={DETECTOR_EXTENTS}
+          />
+          <SensorComponent data={data} extents={DETECTOR_EXTENTS} />
+        </g>
+      </svg>
+    </div>
+  );
 };
 
 export const DEFAULT_DETECTOR_SETTINGS = {
@@ -130,6 +145,7 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
   getNewOptions: (options) => ({
     ...options,
     config: {
+      renderMode: false,
       detectorType: DEFAULT_DETECTOR_SETTINGS.TYPE,
       arrays: [],
       networks: [],
@@ -144,6 +160,7 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
     if (!cfg.config) {
       // Return some default/empty DetectorData if config is not defined
       return {
+        renderMode: false,
         detectorType: DEFAULT_DETECTOR_SETTINGS.TYPE,
         measurements: [],
         displayData: {
@@ -170,6 +187,7 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
 
     const config = cfg.config;
 
+    const renderMode = config.renderMode;
     const detectorType = config.detectorType;
 
     const measurements = (config.measurements && ctx.getScalar(config.measurements).field?.values) || [];
@@ -199,6 +217,7 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
     const { channelMapping, paddedSensorIds } = updateChannelMapping(config, measurements);
 
     return {
+      renderMode: renderMode,
       detectorType: detectorType,
       measurements: measurements,
       displayData: {
@@ -226,10 +245,21 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
   registerOptionsUI: (builder: PanelOptionsEditorBuilder<CanvasElementOptions<DetectorConfig>>) => {
     const category = ['Detector'];
     builder
+      .addBooleanSwitch({
+        category,
+        path: 'config.renderMode',
+        name: 'Render Mode',
+        settings: {
+          options: detectorOptions,
+          id: 'display-mode-select',
+          label: 'Display Mode Selection',
+        },
+        defaultValue: false,
+      })
       .addSelect({
         category,
         path: 'config.detectorType',
-        name: 'Type',
+        name: 'Detector Type Selection',
         settings: {
           options: detectorOptions,
           id: 'detector-type-select',

@@ -9,7 +9,7 @@ import {
   getArraysForDetector,
   getNetworksForDetectorArrays,
   MAX_NETWORK_VALUES,
-} from './types/moduleInfo';
+} from './types/moduleUtils';
 
 // Have these editors here as they are Detector specific and not generalized.
 type DetectorComponent = 'network' | 'array';
