@@ -1,4 +1,5 @@
-import { ModuleData } from './detectorComponentFactory';
+import { DetectorType, ModuleMap } from './moduleFactory';
+
 // For PRIMECAM280, 3 sensor arrays, 6 networks and 1 for 'all' option.
 // Also needs to manually updated if a new detector with more networks is added.
 export const MAX_NETWORK_VALUES = 3 * 6 + 1;
@@ -8,12 +9,12 @@ export interface SensorArray {
   networks: string[];
 }
 
-export const detectorOptions = Object.entries(ModuleData).map(([key, value]) => ({
+export const detectorOptions = Object.entries(ModuleMap).map(([key]) => ({
   value: key as DetectorType,
-  label: value.label,
+  label: key as DetectorType,
 }));
 
-// For dashboard display
+// Information from the module layout input
 export interface ModuleLayout {
   sensorRadii: number;
   moduleExtents: { x: number; y: number };
@@ -29,14 +30,6 @@ export interface HexagonInfo {
   networks: NetworkInfo[];
 }
 
-export interface HexagonData {
-  name: string;
-  center: { x: number; y: number };
-  radius: number;
-  color: string;
-  points: string;
-}
-
 interface NetworkInfo {
   name: string;
   sensors: SensorInfo[];
@@ -50,6 +43,15 @@ export interface SensorInfo {
   isDark: boolean;
 }
 
+// Data needed to display the module layout on the canvas
+export interface HexagonData {
+  name: string;
+  center: { x: number; y: number };
+  radius: number;
+  color: string;
+  points: string;
+}
+
 export interface SensorData {
   // Static properties
   id: number;
@@ -60,40 +62,40 @@ export interface SensorData {
   isDark: boolean;
   radius: number;
 
-  // Dynamic properties -> need updating when channel mapping changes
+  // Dynamic properties -> need updating when edit menu is open
   channel: number;
   sensorLink: string;
+  renderMode: boolean;
 
   // Very Dynamic properties -> need updating when measurements change
-  // Consider arrays of these in the NetworkInfo interface
   isActive: boolean;
   fillColor: string;
   text: string;
   textFillColor: string;
 }
 
-export type DetectorType = keyof typeof ModuleData;
-
 export const getDetectorTypeKey = (key: DetectorType): DetectorType => key;
 
-export const getDefaultDetectorType = (): DetectorType => 'BLAST';
+export const getDefaultDetectorType = (): DetectorType => DetectorType.BLAST;
 
 export const getArraysForDetector = (type: DetectorType): string[] =>
-  ModuleData[type].arrays.map((array) => array.name);
+  ModuleMap[type].sensorArrays.map((array) => array.name);
 
 export const getNetworksForDetectorArray = (type: DetectorType, arrayName: string): string[] => {
-  const array = ModuleData[type].arrays.find((a) => a.name === arrayName);
+  const array = ModuleMap[type].sensorArrays.find((a) => a.name === arrayName);
   return array ? array.networks : [];
 };
 
 export const getNetworksForDetectorArrays = (type: DetectorType, selectedArrays: string[]): string[] => {
   return Array.from(
     new Set(
-      ModuleData[type].arrays.filter((array) => selectedArrays.includes(array.name)).flatMap((array) => array.networks)
+      ModuleMap[type].sensorArrays
+        .filter((array) => selectedArrays.includes(array.name))
+        .flatMap((array) => array.networks)
     )
   );
 };
 
 export const getAllNetworksForDetector = (type: DetectorType): string[] => {
-  return Array.from(new Set(ModuleData[type].arrays.flatMap((a) => a.networks)));
+  return Array.from(new Set(ModuleMap[type].sensorArrays.flatMap((a) => a.networks)));
 };

@@ -19,6 +19,7 @@ interface SensorProps {
   text: string;
   textFillColor: string;
   isDark: boolean;
+  renderMode: boolean; // TODO: Probably don't need this since we will use canvas for fast rendering
 }
 
 export const Sensor: React.FC<{ configData: SensorProps }> = ({ configData }) => {
@@ -54,7 +55,7 @@ export const Sensor: React.FC<{ configData: SensorProps }> = ({ configData }) =>
         strokeWidth={theme.spacing(strokeWidth)}
         fillOpacity="1"
       />
-      {isHovered && (
+      {!configData.renderMode && isHovered && (
         <text x={DETECTOR_EXTENTS.x / 2} y={DETECTOR_EXTENTS.y + 12.5} textAnchor="middle" className={styles.hoverText}>
           <tspan x={DETECTOR_EXTENTS.x / 2} dy="0">
             ID: {configData.id} | Channel: {configData.channel}
@@ -70,7 +71,7 @@ export const Sensor: React.FC<{ configData: SensorProps }> = ({ configData }) =>
     </g>
   );
 
-  if (configData.isActive) {
+  if (configData.isActive && !configData.renderMode) {
     return (
       <a href={configData.sensorLink} target="_blank" rel="noreferrer">
         {sensorElement}

@@ -4,12 +4,8 @@ import { SelectableValue, StandardEditorContext, StandardEditorProps } from '@gr
 import { MultiSelect } from '@grafana/ui';
 
 import { DetectorConfig } from './detector';
-import {
-  DetectorType,
-  getArraysForDetector,
-  getNetworksForDetectorArrays,
-  MAX_NETWORK_VALUES,
-} from './types/moduleUtils';
+import { DetectorType } from './modules/moduleFactory';
+import { getArraysForDetector, getNetworksForDetectorArrays, MAX_NETWORK_VALUES } from './modules/moduleUtils';
 
 // Have these editors here as they are Detector specific and not generalized.
 type DetectorComponent = 'network' | 'array';

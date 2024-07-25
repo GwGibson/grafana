@@ -5444,13 +5444,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@pixi/colord@npm:^2.9.6":
-  version: 2.9.6
-  resolution: "@pixi/colord@npm:2.9.6"
-  checksum: 10/62f56fa1dd881f30091973465046b7a50466923f42d8a1af33ccf06a13fbad3f68499ac025c6984b50f8913ac2f5cb8f4e4d2c96ce18c87637d54f1edcb3738b
-  languageName: node
-  linkType: hard
-
 "@pkgjs/parseargs@npm:^0.11.0":
   version: 0.11.0
   resolution: "@pkgjs/parseargs@npm:0.11.0"
@@ -8192,13 +8185,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/css-font-loading-module@npm:^0.0.12":
-  version: 0.0.12
-  resolution: "@types/css-font-loading-module@npm:0.0.12"
-  checksum: 10/327aaf33e4d5dfb9d4ae7775e33d820b4a4841b9cdbc84358f8f3ce91f42b243f0b509ce10600a3b48b7f12cc89c99486572a805355bdbe4f5d89773b0daa78c
-  languageName: node
-  linkType: hard
-
 "@types/d3-array@npm:*, @types/d3-array@npm:3.0.3":
   version: 3.0.3
   resolution: "@types/d3-array@npm:3.0.3"
@@ -8553,13 +8539,6 @@ __metadata:
   dependencies:
     "@types/trusted-types": "npm:*"
   checksum: 10/e544b3ce53c41215cabff3d89256ff707c7ee8e0c9a1b5034b22014725d288b16e6942cdcdeeb4221c578c3421a6a4721aa0676431f55d7abd18c07368855c5e
-  languageName: node
-  linkType: hard
-
-"@types/earcut@npm:^2.1.4":
-  version: 2.1.4
-  resolution: "@types/earcut@npm:2.1.4"
-  checksum: 10/167e1c6d60e9d964d0f496c11b5065b9d155b4c1df04fb9abcec88af2c16213999ea8ed7cddeec9475620152e7e9e99a0f118e1c8070e1396cf0f299642beb6b
   languageName: node
   linkType: hard
 
@@ -9041,15 +9020,6 @@ __metadata:
   version: 4.0.0
   resolution: "@types/parse-json@npm:4.0.0"
   checksum: 10/4df9de98150d2978afc2161482a3a8e6617883effba3223324f079de97ba7eabd7d84b90ced11c3f82b0c08d4a8383f678c9f73e9c41258f769b3fa234a2bb4f
-  languageName: node
-  linkType: hard
-
-"@types/pixi.js@npm:^5.0.0":
-  version: 5.0.0
-  resolution: "@types/pixi.js@npm:5.0.0"
-  dependencies:
-    pixi.js: "npm:*"
-  checksum: 10/6f305d2c7518888c5ab311f369dd8dc40899cfe3ffe90bca5fb7e74db0820a6d298d6328ebfa63836ebe05536121bebb409285e7a07df446e373d2801874e216
   languageName: node
   linkType: hard
 
@@ -10143,13 +10113,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@webgpu/types@npm:^0.1.40":
-  version: 0.1.44
-  resolution: "@webgpu/types@npm:0.1.44"
-  checksum: 10/28f7e07bd1fb6371527411e63d9673bf646c6ddcff70be79c74001fb5a96f65e971a1fbac57e358c7ecce877577480e2ed718d6b24b47ca721304a0488e4431a
-  languageName: node
-  linkType: hard
-
 "@webpack-cli/configtest@npm:^2.1.1":
   version: 2.1.1
   resolution: "@webpack-cli/configtest@npm:2.1.1"
@@ -10198,13 +10161,6 @@ __metadata:
   version: 1.4.1
   resolution: "@wojtekmaj/date-utils@npm:1.4.1"
   checksum: 10/4df265f47fb70ab31151ee24e994664bb75ff0b086c2ca1567e06afae63eadde2af3542ccca8776060c7ec46aa0efe001c10a4ab7401a3adf3e7872e9927560a
-  languageName: node
-  linkType: hard
-
-"@xmldom/xmldom@npm:^0.8.10":
-  version: 0.8.10
-  resolution: "@xmldom/xmldom@npm:0.8.10"
-  checksum: 10/62400bc5e0e75b90650e33a5ceeb8d94829dd11f9b260962b71a784cd014ddccec3e603fe788af9c1e839fa4648d8c521ebd80d8b752878d3a40edabc9ce7ccf
   languageName: node
   linkType: hard
 
@@ -14617,7 +14573,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"earcut@npm:^2.2.3, earcut@npm:^2.2.4":
+"earcut@npm:^2.2.3":
   version: 2.2.4
   resolution: "earcut@npm:2.2.4"
   checksum: 10/ca8b24714cc2fa67f98fbca6ddcf64bb42ee8d75d0b4f1a81486b3282b0f7f1bf9ec49ad4d02149985886a0c8a03a173463f2acb1f51fa0bb7ba2e1d4aa1254d
@@ -15682,7 +15638,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"eventemitter3@npm:5.0.1, eventemitter3@npm:^5.0.1":
+"eventemitter3@npm:5.0.1":
   version: 5.0.1
   resolution: "eventemitter3@npm:5.0.1"
   checksum: 10/ac6423ec31124629c84c7077eed1e6987f6d66c31cf43c6fcbf6c87791d56317ce808d9ead483652436df171b526fc7220eccdc9f3225df334e81582c3cf7dd5
@@ -17259,7 +17215,6 @@ __metadata:
     "@types/node": "npm:20.14.2"
     "@types/node-forge": "npm:^1"
     "@types/ol-ext": "npm:@siedlerchr/types-ol-ext@3.2.4"
-    "@types/pixi.js": "npm:^5.0.0"
     "@types/pluralize": "npm:^0.0.33"
     "@types/prismjs": "npm:1.26.4"
     "@types/react": "npm:18.3.3"
@@ -17399,7 +17354,6 @@ __metadata:
     nx: "npm:19.2.0"
     ol: "npm:7.4.0"
     ol-ext: "npm:4.0.18"
-    pixi.js: "npm:^8.2.5"
     pluralize: "npm:^8.0.0"
     postcss: "npm:8.4.38"
     postcss-loader: "npm:8.1.1"
@@ -19194,13 +19148,6 @@ __metadata:
   version: 3.1.1
   resolution: "isexe@npm:3.1.1"
   checksum: 10/7fe1931ee4e88eb5aa524cd3ceb8c882537bc3a81b02e438b240e47012eef49c86904d0f0e593ea7c3a9996d18d0f1f3be8d3eaa92333977b0c3a9d353d5563e
-  languageName: node
-  linkType: hard
-
-"ismobilejs@npm:^1.1.1":
-  version: 1.1.1
-  resolution: "ismobilejs@npm:1.1.1"
-  checksum: 10/02db92559e85544fa5353894aede9a778c0a29d2e22db39db29eb9e4665f95fba90ee53b7105a31c2a8e8eabc63824303f6e3edbe73508ebdab6870a2b83904c
   languageName: node
   linkType: hard
 
@@ -23759,13 +23706,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"parse-svg-path@npm:^0.1.2":
-  version: 0.1.2
-  resolution: "parse-svg-path@npm:0.1.2"
-  checksum: 10/bba7d4b4207fcc9eaf553b0d34db96ea8a1173635bc94528b5b66e1581902d4792d8d6229103764f01af4d839274234e97a4fa1c6f0fe7dcce195383848cec56
-  languageName: node
-  linkType: hard
-
 "parse-url@npm:^8.1.0":
   version: 8.1.0
   resolution: "parse-url@npm:8.1.0"
@@ -24044,23 +23984,6 @@ __metadata:
   version: 4.0.6
   resolution: "pirates@npm:4.0.6"
   checksum: 10/d02dda76f4fec1cbdf395c36c11cf26f76a644f9f9a1bfa84d3167d0d3154d5289aacc72677aa20d599bb4a6937a471de1b65c995e2aea2d8687cbcd7e43ea5f
-  languageName: node
-  linkType: hard
-
-"pixi.js@npm:*, pixi.js@npm:^8.2.5":
-  version: 8.2.5
-  resolution: "pixi.js@npm:8.2.5"
-  dependencies:
-    "@pixi/colord": "npm:^2.9.6"
-    "@types/css-font-loading-module": "npm:^0.0.12"
-    "@types/earcut": "npm:^2.1.4"
-    "@webgpu/types": "npm:^0.1.40"
-    "@xmldom/xmldom": "npm:^0.8.10"
-    earcut: "npm:^2.2.4"
-    eventemitter3: "npm:^5.0.1"
-    ismobilejs: "npm:^1.1.1"
-    parse-svg-path: "npm:^0.1.2"
-  checksum: 10/203fb0a55d5044e508def9cd2aeb4cb18898efaebb1fc24e66608f4a66bb263bcc1220f36d9a2f19a51a62352a714c6bda6dbcd57496cd6f80591a11018f3df5
   languageName: node
   linkType: hard
 

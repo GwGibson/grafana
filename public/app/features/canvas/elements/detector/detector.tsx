@@ -4,7 +4,7 @@ import React from 'react';
 import { GrafanaTheme2, PanelOptionsEditorBuilder } from '@grafana/data';
 import { getTemplateSrv } from '@grafana/runtime';
 import { ScalarDimensionConfig } from '@grafana/schema';
-import { useStyles2 } from '@grafana/ui';
+import { usePanelContext, useStyles2 } from '@grafana/ui';
 import { DimensionContext } from 'app/features/dimensions';
 import { ScalarFieldDimensionEditor } from 'app/features/dimensions/editors';
 
@@ -22,11 +22,13 @@ import {
 import { DetectorArrayEditor, DetectorNetworkEditor } from './detectorEditors';
 import { DETECTOR_EXTENTS, DETECTOR_LAYOUT } from './layout';
 import {
-  getBaseComponent,
-  getSensorRenderComponent,
-  getSensorDisplayComponent,
-} from './types/detectorComponentFactory';
-import { DetectorType, detectorOptions, getDefaultDetectorType } from './types/moduleUtils';
+  DetectorType,
+  GenerateModuleDisplay,
+  getModuleDisplayData,
+  ModuleDisplayData,
+  updateSensorMeasurements,
+} from './modules/moduleFactory';
+import { detectorOptions, getDefaultDetectorType } from './modules/moduleUtils';
 import { updateChannelMapping } from './utils/sensorUtils';
 
 export interface DetectorData {
@@ -54,7 +56,6 @@ export interface DetectorColorData {
 export interface DetectorMappingData {
   // [channel] -> maps to sensor ids in ascending order
   channelMapping: number[];
-  paddedSensorIds: string[];
   baseURL: string;
 }
 
@@ -72,65 +73,51 @@ export interface DetectorConfig {
   networks: string[];
   baseURL: string;
   channelMappingInput: string;
-  lastMappingConfigs: DetectorMappingConfig;
+  lastChannelMappingInput: string;
+  lastChannelMapping: number[];
   colorBar: ColorBar;
+  moduleDisplayData?: ModuleDisplayData;
 }
 
-interface DetectorMappingConfig {
-  channelMappingInput: string;
-  channelMapping: number[];
-  paddedSensorIds: string[];
-}
-
-// Should build this in 3 components -> Permanent Layout -> Mapping Update -> Color Update
-// Not sure why memoization isn't working. Probably necessary particulary for the initial layout.
-export const DetectorDisplay: React.FC<CanvasElementProps<DetectorConfig, DetectorData>> = (props) => {
-  const { data } = props;
+const DetectorDisplay: React.FC<CanvasElementProps<DetectorConfig, DetectorData>> = (props) => {
+  const { config, data } = props;
   const staticStyles = useStyles2(getDetectorStaticStyles());
+  const context = usePanelContext();
 
   if (!data) {
     return null;
   }
 
-  const BaseComponent = getBaseComponent(data.detectorType as DetectorType);
-  const SensorComponent = data.renderMode
-    ? getSensorRenderComponent(data.detectorType as DetectorType)
-    : getSensorDisplayComponent(data.detectorType as DetectorType);
+  const scene = context.instanceState?.scene;
+  const moduleDisplayData = getModuleDataLogic(data, config, scene?.isPanelEditing || false);
 
   return (
-      <svg
-        viewBox={`-10 -10 ${DETECTOR_LAYOUT.VIEWBOX.WIDTH} ${DETECTOR_LAYOUT.VIEWBOX.HEIGHT}`}
-        fill="none"
-        preserveAspectRatio="xMidYMid meet"
-        style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
-      >
-        <title id="title">Detector Layout</title>
-        <desc id="desc">Visual representation of the detector layout with color-coded sensors</desc>
-        <g className={staticStyles.outline}>
-          <ColorBarDisplay
-            colorBar={data.colorData.colorBar}
-            minMeasurement={data.colorData.minMeasurement}
-            maxMeasurement={data.colorData.maxMeasurement}
-            normalized={data.variableData.normalized}
-            dimensions={{
-              x: DETECTOR_LAYOUT.COLORBAR.X,
-              y: DETECTOR_LAYOUT.COLORBAR.Y,
-              width: DETECTOR_LAYOUT.COLORBAR.WIDTH,
-              height: DETECTOR_LAYOUT.COLORBAR.HEIGHT,
-            }}
-          />
-          <BaseComponent
-            numMeasurements={data.measurements.length}
-            colorBar={data.colorData.colorBar}
-            extents={DETECTOR_EXTENTS}
-          />
-          {!data.renderMode && <SensorComponent data={data} extents={DETECTOR_EXTENTS} />}
-        </g>
-      </svg>
+    <svg
+      viewBox={`${DETECTOR_LAYOUT.VIEWBOX.START_X} ${DETECTOR_LAYOUT.VIEWBOX.START_Y}
+                ${DETECTOR_LAYOUT.VIEWBOX.WIDTH} ${DETECTOR_LAYOUT.VIEWBOX.HEIGHT}`}
+      fill="none"
+      preserveAspectRatio="xMidYMid meet"
+      style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
+    >
+      <desc id="desc">Visual representation of the detector layout with color-coded sensors</desc>
+      <g className={staticStyles.outline}>
+        <ColorBarDisplay
+          colorBar={data.colorData.colorBar}
+          minMeasurement={data.colorData.minMeasurement}
+          maxMeasurement={data.colorData.maxMeasurement}
+          normalized={data.variableData.normalized}
+          dimensions={{
+            x: DETECTOR_LAYOUT.COLORBAR.X,
+            y: DETECTOR_LAYOUT.COLORBAR.Y,
+            width: DETECTOR_LAYOUT.COLORBAR.WIDTH,
+            height: DETECTOR_LAYOUT.COLORBAR.HEIGHT,
+          }}
+        />
+        <GenerateModuleDisplay {...moduleDisplayData} />
+      </g>
+    </svg>
   );
 };
-
-      // {data.renderMode && <SensorComponent data={data} extents={DETECTOR_EXTENTS} />}
 
 export const DEFAULT_DETECTOR_SETTINGS = {
   TYPE: getDefaultDetectorType(),
@@ -156,7 +143,8 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
       networks: [],
       baseURL: '',
       channelMappingInput: '',
-      lastMappingConfigs: { channelMappingInput: '', channelMapping: [], paddedSensorIds: [] },
+      lastChannelMappingInput: '',
+      lastChannelMapping: [],
       colorBar: DEFAULT_DETECTOR_SETTINGS.COLORBAR,
     },
   }),
@@ -179,7 +167,6 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
         },
         mappingData: {
           channelMapping: [],
-          paddedSensorIds: [],
           baseURL: '',
         },
         variableData: {
@@ -219,7 +206,7 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
 
     const baseURL = config.baseURL || '';
     // Only update channelMapping & paddedSensorIds if the channel mapping input has changed.
-    const { channelMapping, paddedSensorIds } = updateChannelMapping(config, measurements);
+    const channelMapping = updateChannelMapping(config, measurements);
 
     return {
       renderMode: renderMode,
@@ -236,7 +223,6 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
       },
       mappingData: {
         channelMapping: channelMapping,
-        paddedSensorIds: paddedSensorIds,
         baseURL: baseURL,
       },
       variableData: {
@@ -255,7 +241,6 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
         path: 'config.renderMode',
         name: 'Render Mode',
         settings: {
-          options: detectorOptions,
           id: 'display-mode-select',
           label: 'Display Mode Selection',
         },
@@ -375,3 +360,177 @@ export const getDetectorStaticStyles = () => (theme: GrafanaTheme2) => ({
     textShadow: `1px 1px 2px ${theme.colors.background.canvas}`,
   }),
 });
+
+export const getModuleDataLogic = (
+  data: DetectorData,
+  config: DetectorConfig,
+  isPanelEditing: boolean
+): ModuleDisplayData => {
+  let moduleDisplayData: ModuleDisplayData;
+
+  if (isPanelEditing || !config.moduleDisplayData) {
+    moduleDisplayData = getModuleDisplayData(data.detectorType)({
+      data,
+      extents: DETECTOR_EXTENTS,
+    });
+    config.moduleDisplayData = moduleDisplayData;
+  } else {
+    moduleDisplayData = {
+      hexagons: config.moduleDisplayData.hexagons,
+      sensors: updateSensorMeasurements(
+        config.moduleDisplayData.sensors,
+        data.measurements,
+        data.colorData,
+        data.variableData.normalized,
+        data.renderMode
+      ),
+    };
+  }
+
+  return moduleDisplayData;
+};
+
+// const canvasRef = useRef<HTMLCanvasElement>(null);
+// const offscreenCanvasRef = useRef<OffscreenCanvas | null>(null);
+// const [canvasContext, setCanvasContext] = useState<CanvasRenderingContext2D | null>(null);
+// const [offscreenContext, setOffscreenContext] = useState<OffscreenCanvasRenderingContext2D | null>(null);
+
+// useEffect(() => {
+//   if (canvasRef.current) {
+//     const canvas = canvasRef.current;
+//     const ctx = canvas.getContext('2d', { alpha: true });
+//     setCanvasContext(ctx);
+
+//     // Create offscreen canvas
+//     const offscreenCanvas = new OffscreenCanvas(canvas.width, canvas.height);
+//     const offscreenCtx = offscreenCanvas.getContext('2d', { alpha: true });
+//     setOffscreenContext(offscreenCtx);
+//     offscreenCanvasRef.current = offscreenCanvas;
+//   }
+// }, []);
+
+// useEffect(() => {
+//   if (data?.renderMode && offscreenContext && canvasContext) {
+//     drawDetector(offscreenContext, data);
+//     // Copy from offscreen canvas to main canvas
+//     canvasContext.clearRect(0, 0, canvasContext.canvas.width, canvasContext.canvas.height);
+//     canvasContext.drawImage(offscreenCanvasRef.current!, 0, 0);
+//   }
+// });
+
+// if (data.renderMode) {
+//   return (
+//     <canvas
+//       ref={canvasRef}
+//       width={DETECTOR_LAYOUT.VIEWBOX.WIDTH}
+//       height={DETECTOR_LAYOUT.VIEWBOX.HEIGHT}
+//       style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
+//     />
+//   );
+// }
+
+// const drawColorBar = (
+//   ctx: OffscreenCanvasRenderingContext2D,
+//   colorBar: ColorBar,
+//   minMeasurement: number,
+//   maxMeasurement: number,
+//   normalized: boolean,
+//   dimensions: {
+//     x: number;
+//     y: number;
+//     width: number;
+//     height: number;
+//   }
+// ) => {
+//   const scheme: ColorBarScheme = ColorBarData[colorBar].scheme;
+//   const { colors, highColor, lowColor } = scheme;
+
+//   const mainColorBarHeight = dimensions.height * 0.875;
+//   const indicatorHeight = dimensions.height * 0.05;
+//   const colorBarWidth = dimensions.width * 0.75;
+
+//   const [min, max] = normalized ? [-1.0, 1.0] : [minMeasurement, maxMeasurement];
+
+//   // Draw main color bar
+//   const gradient = ctx.createLinearGradient(
+//     dimensions.x,
+//     dimensions.y + indicatorHeight * 2 + mainColorBarHeight,
+//     dimensions.x,
+//     dimensions.y + indicatorHeight * 2
+//   );
+//   colors.forEach((color: string, index: number) => {
+//     gradient.addColorStop(index / (colors.length - 1), color);
+//   });
+
+//   ctx.fillStyle = gradient;
+//   ctx.fillRect(dimensions.x, dimensions.y + indicatorHeight * 2, colorBarWidth, mainColorBarHeight);
+
+//   // Draw indicator bars for normalized data
+//   if (normalized) {
+//     ctx.fillStyle = highColor;
+//     ctx.fillRect(dimensions.x, dimensions.y, colorBarWidth, indicatorHeight);
+
+//     ctx.fillStyle = lowColor;
+//     ctx.fillRect(dimensions.x, dimensions.y + indicatorHeight * 3 + mainColorBarHeight, colorBarWidth, indicatorHeight);
+//   }
+
+//   // Draw text
+//   ctx.fillStyle = 'white';
+//   ctx.font = '12px Arial';
+//   ctx.textAlign = 'center';
+//   ctx.fillText(max.toString(), dimensions.x + colorBarWidth / 2, dimensions.y + indicatorHeight * 1.75);
+//   ctx.fillText(
+//     min.toString(),
+//     dimensions.x + colorBarWidth / 2,
+//     dimensions.y + indicatorHeight * 2.2 + mainColorBarHeight + 12
+//   );
+// };
+
+// const drawDetector = (ctx: OffscreenCanvasRenderingContext2D, data: DetectorData) => {
+//   const SEMICIRCLE_COUNT = 30000;
+//   const width = ctx.canvas.width;
+//   const height = ctx.canvas.height;
+
+//   // Clear the canvas
+//   ctx.clearRect(0, 0, width, height);
+//   const dimensions = {
+//     x: DETECTOR_LAYOUT.VIEWBOX.START_X,
+//     y: DETECTOR_LAYOUT.VIEWBOX.START_Y,
+//     width: DETECTOR_LAYOUT.VIEWBOX.WIDTH,
+//     height: DETECTOR_LAYOUT.VIEWBOX.HEIGHT,
+//   };
+//   drawColorBar(
+//     ctx,
+//     data.colorData.colorBar,
+//     data.colorData.minMeasurement,
+//     data.colorData.maxMeasurement,
+//     data.variableData.normalized,
+//     dimensions
+//   );
+//   // Calculate grid dimensions
+//   const columns = Math.ceil(Math.sqrt(SEMICIRCLE_COUNT / 2));
+//   const rows = Math.ceil(SEMICIRCLE_COUNT / (2 * columns));
+//   const cellWidth = width / columns;
+//   const cellHeight = height / rows;
+//   const radius = Math.min(cellWidth, cellHeight) * 0.4;
+
+//   // Pre-calculate semicircle positions and angles
+//   const semicircles = new Array(SEMICIRCLE_COUNT);
+//   for (let i = 0; i < SEMICIRCLE_COUNT; i++) {
+//     const col = Math.floor(i / (2 * rows));
+//     const row = i % (2 * rows);
+//     const x = (col + 0.5) * cellWidth;
+//     const y = (row + 0.5) * cellHeight;
+//     const startAngle = i % 2 === 0 ? 0 : Math.PI;
+//     semicircles[i] = { x, y, startAngle };
+//   }
+
+//   // Draw semicircles
+//   for (let i = 0; i < SEMICIRCLE_COUNT; i++) {
+//     const { x, y, startAngle } = semicircles[i];
+//     ctx.beginPath();
+//     ctx.arc(x, y, radius, startAngle, startAngle + Math.PI);
+//     ctx.fillStyle = `hsl(${Math.random() * 360}, 100%, 50%)`; // Replace with actual color data
+//     ctx.fill();
+//   }
+// };

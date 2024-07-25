@@ -22,6 +22,8 @@ export const DETECTOR_LAYOUT: {
     readonly HEIGHT: number;
   };
   VIEWBOX: {
+    START_X: -10;
+    START_Y: -10;
     WIDTH_EXTRA: 120;
     HEIGHT_EXTRA: 60;
     readonly WIDTH: number;
@@ -47,6 +49,8 @@ export const DETECTOR_LAYOUT: {
     },
   },
   VIEWBOX: {
+    START_X: -10,
+    START_Y: -10,
     WIDTH_EXTRA: 120, // extra width to allow for colorbar
     HEIGHT_EXTRA: 60, // extra height to allow for channel text
     get WIDTH() {
