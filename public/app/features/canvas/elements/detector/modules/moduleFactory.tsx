@@ -167,6 +167,8 @@ const generateSensorLayout = (
     ])
   );
 
+  const numMeasurements = data.measurements.length;
+  const numMeasurementDigits = String(numMeasurements).length;
   moduleLayout.hexagons.forEach((hexagon) => {
     if (selectedArrays.includes(hexagon.name)) {
       const scaledCoords = scaledCoordinatesMap.get(hexagon.name)!;
@@ -189,8 +191,8 @@ const generateSensorLayout = (
               sensorLink: generateSensorLink(
                 baseURL,
                 mappedChannel,
-                totalSensors,
-                String(totalSensors).length,
+                numMeasurements,
+                numMeasurementDigits,
                 datastream,
                 attribute,
                 normalized ? 'true' : 'false'

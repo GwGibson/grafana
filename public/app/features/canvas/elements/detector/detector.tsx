@@ -361,6 +361,9 @@ export const getDetectorStaticStyles = () => (theme: GrafanaTheme2) => ({
   }),
 });
 
+// TODO: Sensor links will not update properly if the datastream, attribute, or normalized values change
+// Need to go into edit mode to update the links if in render mode...
+// Not ideal but not sure it is worth updating them in render mode since sensors are not clickable anyway.
 export const getModuleDataLogic = (
   data: DetectorData,
   config: DetectorConfig,
@@ -368,7 +371,7 @@ export const getModuleDataLogic = (
 ): ModuleDisplayData => {
   let moduleDisplayData: ModuleDisplayData;
 
-  if (isPanelEditing || !config.moduleDisplayData) {
+  if (!data.renderMode || isPanelEditing || !config.moduleDisplayData) {
     moduleDisplayData = getModuleDisplayData(data.detectorType)({
       data,
       extents: DETECTOR_EXTENTS,
@@ -389,148 +392,3 @@ export const getModuleDataLogic = (
 
   return moduleDisplayData;
 };
-
-// const canvasRef = useRef<HTMLCanvasElement>(null);
-// const offscreenCanvasRef = useRef<OffscreenCanvas | null>(null);
-// const [canvasContext, setCanvasContext] = useState<CanvasRenderingContext2D | null>(null);
-// const [offscreenContext, setOffscreenContext] = useState<OffscreenCanvasRenderingContext2D | null>(null);
-
-// useEffect(() => {
-//   if (canvasRef.current) {
-//     const canvas = canvasRef.current;
-//     const ctx = canvas.getContext('2d', { alpha: true });
-//     setCanvasContext(ctx);
-
-//     // Create offscreen canvas
-//     const offscreenCanvas = new OffscreenCanvas(canvas.width, canvas.height);
-//     const offscreenCtx = offscreenCanvas.getContext('2d', { alpha: true });
-//     setOffscreenContext(offscreenCtx);
-//     offscreenCanvasRef.current = offscreenCanvas;
-//   }
-// }, []);
-
-// useEffect(() => {
-//   if (data?.renderMode && offscreenContext && canvasContext) {
-//     drawDetector(offscreenContext, data);
-//     // Copy from offscreen canvas to main canvas
-//     canvasContext.clearRect(0, 0, canvasContext.canvas.width, canvasContext.canvas.height);
-//     canvasContext.drawImage(offscreenCanvasRef.current!, 0, 0);
-//   }
-// });
-
-// if (data.renderMode) {
-//   return (
-//     <canvas
-//       ref={canvasRef}
-//       width={DETECTOR_LAYOUT.VIEWBOX.WIDTH}
-//       height={DETECTOR_LAYOUT.VIEWBOX.HEIGHT}
-//       style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
-//     />
-//   );
-// }
-
-// const drawColorBar = (
-//   ctx: OffscreenCanvasRenderingContext2D,
-//   colorBar: ColorBar,
-//   minMeasurement: number,
-//   maxMeasurement: number,
-//   normalized: boolean,
-//   dimensions: {
-//     x: number;
-//     y: number;
-//     width: number;
-//     height: number;
-//   }
-// ) => {
-//   const scheme: ColorBarScheme = ColorBarData[colorBar].scheme;
-//   const { colors, highColor, lowColor } = scheme;
-
-//   const mainColorBarHeight = dimensions.height * 0.875;
-//   const indicatorHeight = dimensions.height * 0.05;
-//   const colorBarWidth = dimensions.width * 0.75;
-
-//   const [min, max] = normalized ? [-1.0, 1.0] : [minMeasurement, maxMeasurement];
-
-//   // Draw main color bar
-//   const gradient = ctx.createLinearGradient(
-//     dimensions.x,
-//     dimensions.y + indicatorHeight * 2 + mainColorBarHeight,
-//     dimensions.x,
-//     dimensions.y + indicatorHeight * 2
-//   );
-//   colors.forEach((color: string, index: number) => {
-//     gradient.addColorStop(index / (colors.length - 1), color);
-//   });
-
-//   ctx.fillStyle = gradient;
-//   ctx.fillRect(dimensions.x, dimensions.y + indicatorHeight * 2, colorBarWidth, mainColorBarHeight);
-
-//   // Draw indicator bars for normalized data
-//   if (normalized) {
-//     ctx.fillStyle = highColor;
-//     ctx.fillRect(dimensions.x, dimensions.y, colorBarWidth, indicatorHeight);
-
-//     ctx.fillStyle = lowColor;
-//     ctx.fillRect(dimensions.x, dimensions.y + indicatorHeight * 3 + mainColorBarHeight, colorBarWidth, indicatorHeight);
-//   }
-
-//   // Draw text
-//   ctx.fillStyle = 'white';
-//   ctx.font = '12px Arial';
-//   ctx.textAlign = 'center';
-//   ctx.fillText(max.toString(), dimensions.x + colorBarWidth / 2, dimensions.y + indicatorHeight * 1.75);
-//   ctx.fillText(
-//     min.toString(),
-//     dimensions.x + colorBarWidth / 2,
-//     dimensions.y + indicatorHeight * 2.2 + mainColorBarHeight + 12
-//   );
-// };
-
-// const drawDetector = (ctx: OffscreenCanvasRenderingContext2D, data: DetectorData) => {
-//   const SEMICIRCLE_COUNT = 30000;
-//   const width = ctx.canvas.width;
-//   const height = ctx.canvas.height;
-
-//   // Clear the canvas
-//   ctx.clearRect(0, 0, width, height);
-//   const dimensions = {
-//     x: DETECTOR_LAYOUT.VIEWBOX.START_X,
-//     y: DETECTOR_LAYOUT.VIEWBOX.START_Y,
-//     width: DETECTOR_LAYOUT.VIEWBOX.WIDTH,
-//     height: DETECTOR_LAYOUT.VIEWBOX.HEIGHT,
-//   };
-//   drawColorBar(
-//     ctx,
-//     data.colorData.colorBar,
-//     data.colorData.minMeasurement,
-//     data.colorData.maxMeasurement,
-//     data.variableData.normalized,
-//     dimensions
-//   );
-//   // Calculate grid dimensions
-//   const columns = Math.ceil(Math.sqrt(SEMICIRCLE_COUNT / 2));
-//   const rows = Math.ceil(SEMICIRCLE_COUNT / (2 * columns));
-//   const cellWidth = width / columns;
-//   const cellHeight = height / rows;
-//   const radius = Math.min(cellWidth, cellHeight) * 0.4;
-
-//   // Pre-calculate semicircle positions and angles
-//   const semicircles = new Array(SEMICIRCLE_COUNT);
-//   for (let i = 0; i < SEMICIRCLE_COUNT; i++) {
-//     const col = Math.floor(i / (2 * rows));
-//     const row = i % (2 * rows);
-//     const x = (col + 0.5) * cellWidth;
-//     const y = (row + 0.5) * cellHeight;
-//     const startAngle = i % 2 === 0 ? 0 : Math.PI;
-//     semicircles[i] = { x, y, startAngle };
-//   }
-
-//   // Draw semicircles
-//   for (let i = 0; i < SEMICIRCLE_COUNT; i++) {
-//     const { x, y, startAngle } = semicircles[i];
-//     ctx.beginPath();
-//     ctx.arc(x, y, radius, startAngle, startAngle + Math.PI);
-//     ctx.fillStyle = `hsl(${Math.random() * 360}, 100%, 50%)`; // Replace with actual color data
-//     ctx.fill();
-//   }
-// };

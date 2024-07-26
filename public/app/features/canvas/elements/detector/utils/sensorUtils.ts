@@ -3,14 +3,14 @@ import { DetectorConfig } from '../detector';
 export const generateSensorLink = (
   baseURL: string,
   channel: number,
-  numberOfSensors: number,
+  numMeasurements: number,
   padding: number,
   datastream: string,
   attribute: string,
   normalized: string
 ): string => {
   const channelString =
-    channel <= numberOfSensors ? `channel_${String(channel).padStart(padding, '0')}` : 'All';
+    channel <= numMeasurements ? `channel_${String(channel).padStart(padding, '0')}` : 'All';
   return `${baseURL}&var-channel=${channelString}&var-datastream=${datastream}&var-attribute=${attribute}&var-normalized=${normalized}`;
 };
 
