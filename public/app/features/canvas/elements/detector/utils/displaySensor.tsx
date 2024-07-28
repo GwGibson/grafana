@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useStyles2, useTheme2 } from '@grafana/ui';
 
 import { getDetectorStaticStyles } from '../detector';
-import { DETECTOR_EXTENTS } from '../layout';
+import { VIEWBOX_MODULE_EXTENT } from '../layout';
 
 interface SensorProps {
   id: number;
@@ -56,14 +56,14 @@ export const Sensor: React.FC<{ configData: SensorProps }> = ({ configData }) =>
         fillOpacity="1"
       />
       {!configData.renderMode && isHovered && (
-        <text x={DETECTOR_EXTENTS.x / 2} y={DETECTOR_EXTENTS.y + 12.5} textAnchor="middle" className={styles.hoverText}>
-          <tspan x={DETECTOR_EXTENTS.x / 2} dy="0">
+        <text x={VIEWBOX_MODULE_EXTENT.width / 2} y={VIEWBOX_MODULE_EXTENT.height + 12.5} textAnchor="middle" className={styles.hoverText}>
+          <tspan x={VIEWBOX_MODULE_EXTENT.width / 2} dy="0">
             ID: {configData.id} | Channel: {configData.channel}
           </tspan>
-          <tspan x={DETECTOR_EXTENTS.x / 2} dy="1.2em">
+          <tspan x={VIEWBOX_MODULE_EXTENT.width / 2} dy="1.2em">
             ({configData.unscaledPosition[0]}, {configData.unscaledPosition[1]})
           </tspan>
-          <tspan x={DETECTOR_EXTENTS.x / 2} dy="1.2em" style={{ fill: configData.textFillColor }}>
+          <tspan x={VIEWBOX_MODULE_EXTENT.width / 2} dy="1.2em" style={{ fill: configData.textFillColor }}>
             {`(${configData.text})`}
           </tspan>
         </text>

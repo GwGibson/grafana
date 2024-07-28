@@ -9,12 +9,13 @@ import { createHexagonPoints, scaleCoordinates, scaleRadius } from '../utils/geo
 import { generateSensorLink } from '../utils/sensorUtils';
 
 import { MODULE_LAYOUT_BLAST, SENSOR_ARRAY_CONFIG_BLAST } from './blast/moduleBlast';
-import { HexagonData, ModuleLayout, SensorArray, SensorData } from './moduleUtils';
+import { ModuleLayout } from './builderUtils';
+import { HexagonData, SensorArray, SensorData } from './dataUtils';
 import { MODULE_LAYOUT_PRIMECAM280, SENSOR_ARRAY_CONFIG_PRIMECAM280 } from './prime-cam/modulePrimeCam280';
 
 export interface ModuleDisplayProps {
   data: DetectorData;
-  extents: { x: number; y: number };
+  viewboxModuleExtent: { width: number; height: number };
 }
 
 export interface ModuleProps extends ModuleDisplayProps {
@@ -79,9 +80,13 @@ export const getModuleDisplayData =
       throw new Error(`Invalid detector type: ${type}`);
     }
     return {
-      hexagons: generateModuleLayout(props.extents, config.moduleLayout),
+      hexagons: generateModuleLayout(
+        props.data.displayData.selectedArrays,
+        props.viewboxModuleExtent,
+        config.moduleLayout
+      ),
       sensors: updateSensorMeasurements(
-        generateSensorLayout(props.data, props.extents, config.moduleLayout),
+        generateSensorLayout(props.data, props.viewboxModuleExtent, config.moduleLayout),
         props.data.measurements,
         props.data.colorData,
         props.data.variableData.normalized,
@@ -110,32 +115,36 @@ export const ModuleMap: Record<DetectorType, ModuleMapData> = Object.entries(det
   {} as Record<DetectorType, ModuleMapData>
 );
 
-const generateModuleLayout = (detectorExtents: { x: number; y: number }, moduleLayout: ModuleLayout): HexagonData[] => {
-  return moduleLayout.hexagons.map((hexagon) => ({
-    name: hexagon.name,
-    center: { x: hexagon.center[0], y: hexagon.center[1] },
-    radius: hexagon.radius,
-    color: hexagon.color,
-    points: createHexagonPoints(
-      { x: hexagon.center[0], y: hexagon.center[1] },
-      hexagon.radius,
-      moduleLayout.moduleExtents,
-      detectorExtents,
-      hexagon.rotated
-    ),
-  }));
+const generateModuleLayout = (
+  selectedArrays: string[],
+  viewboxModuleExtent: { width: number; height: number },
+  moduleLayout: ModuleLayout
+): HexagonData[] => {
+  return moduleLayout.hexagons
+    .filter((hexagon) => selectedArrays.includes(hexagon.name))
+    .map((hexagon) => ({
+      name: hexagon.name,
+      center: { x: hexagon.center.x, y: hexagon.center.y },
+      extent: hexagon.extent,
+      color: hexagon.color,
+      points: createHexagonPoints(
+        viewboxModuleExtent,
+        moduleLayout.layoutExtent,
+        { x: hexagon.center.x, y: hexagon.center.y },
+        hexagon.extent,
+        hexagon.rotated
+      ),
+    }));
 };
 
 const generateSensorLayout = (
   data: DetectorData,
-  extents: { x: number; y: number },
+  viewboxModuleExtent: { width: number; height: number },
   moduleLayout: ModuleLayout
 ): SensorData[] => {
   const { channelMapping, baseURL } = data.mappingData;
   const { datastream, attribute, normalized } = data.variableData;
   const { selectedArrays, selectedNetworks } = data.displayData;
-
-  const scaledSensorRadii = scaleRadius(moduleLayout.sensorRadii, moduleLayout.moduleExtents, extents);
 
   // Pre-calculate the total number of sensors
   const totalSensors = moduleLayout.hexagons.reduce(
@@ -160,27 +169,32 @@ const generateSensorLayout = (
     moduleLayout.hexagons.map((hexagon) => [
       hexagon.name,
       scaleCoordinates(
+        viewboxModuleExtent,
+        moduleLayout.layoutExtent,
         hexagon.networks.flatMap((network) => network.sensors.map((sensor) => sensor.position)),
-        moduleLayout.moduleExtents,
-        extents
+        hexagon.extent,
+        hexagon.center
       ),
     ])
   );
 
   const numMeasurements = data.measurements.length;
   const numMeasurementDigits = String(numMeasurements).length;
+  let sensor_id = 1;
+
   moduleLayout.hexagons.forEach((hexagon) => {
     if (selectedArrays.includes(hexagon.name)) {
+      const scaledSensorRadii = scaleRadius(hexagon.sensorRadii, hexagon.extent, viewboxModuleExtent);
       const scaledCoords = scaledCoordinatesMap.get(hexagon.name)!;
       let hexagonSensorIndex = 0;
 
       hexagon.networks.forEach((network) => {
         if (selectedNetworks.includes(network.name)) {
           network.sensors.forEach((sensor) => {
-            const mappedChannel = sensorIndex < channelMapping.length ? channelMapping[sensorIndex] : sensor.id;
+            const mappedChannel = sensorIndex < channelMapping.length ? channelMapping[sensorIndex] : sensor_id;
 
             sensorData[sensorIndex] = {
-              id: sensor.id,
+              id: sensor_id++,
               scaledPosition: scaledCoords[hexagonSensorIndex],
               unscaledPosition: sensor.position,
               rotation: sensor.rotation,

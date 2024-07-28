@@ -1,18 +1,18 @@
 // This file is meant to be a shared file between all detector types
 // that expresses the general layout of the area that will contain
-// the specific detector layout.
+// the specific module (mul) layout.
 
-// TODO: Some 'magic numbers' here. Should base all of these off the original EXTENTS
+// TODO: Some 'magic numbers' here. Should base all of these off the original extent
 // Don't think it is worth it to base them off the physical detector shape, just use the
-// extents as the base and adjust from there.
+// extent as the base and adjust from there.
 
 /**
- * Common Detector dimensions and layout constants
+ * Common Module dimensions and layout constants
  */
-export const DETECTOR_LAYOUT: {
-  EXTENTS: { X: 400; Y: 400 };
-  // These will be based on the extent boundaries which may not correspond to the physical detector boundaries
-  // The phyiscal boundaries are based on the specific detector type but the must be within the extent boundaries
+export const VIEWBOX_LAYOUT: {
+  MODULE_EXTENT: { WIDTH: 400; HEIGHT: 400 };
+  // These will be based on the extent boundaries which may not correspond to the physical module boundaries
+  // The physical boundaries are based on the specific module type but the must be within the extent boundaries
   COLORBAR: {
     X_OFFSET: 10;
     Y: 26.8; // Based on text size to some extent
@@ -30,9 +30,9 @@ export const DETECTOR_LAYOUT: {
     readonly HEIGHT: number;
   };
 } = {
-  EXTENTS: {
-    X: 400,
-    Y: 400,
+  MODULE_EXTENT: {
+    WIDTH: 400,
+    HEIGHT: 400,
   },
   COLORBAR: {
     X_OFFSET: 10,
@@ -42,10 +42,10 @@ export const DETECTOR_LAYOUT: {
       return this.Y * 2; // Space at the top and bottom for colorbar text
     },
     get X() {
-      return DETECTOR_LAYOUT.EXTENTS.X + this.X_OFFSET;
+      return VIEWBOX_LAYOUT.MODULE_EXTENT.WIDTH + this.X_OFFSET;
     },
     get HEIGHT() {
-      return DETECTOR_LAYOUT.EXTENTS.Y - this.HEIGHT_OFFSET;
+      return VIEWBOX_LAYOUT.MODULE_EXTENT.HEIGHT - this.HEIGHT_OFFSET;
     },
   },
   VIEWBOX: {
@@ -54,19 +54,19 @@ export const DETECTOR_LAYOUT: {
     WIDTH_EXTRA: 120, // extra width to allow for colorbar
     HEIGHT_EXTRA: 60, // extra height to allow for channel text
     get WIDTH() {
-      return this.WIDTH_EXTRA + DETECTOR_LAYOUT.EXTENTS.X;
+      return this.WIDTH_EXTRA + VIEWBOX_LAYOUT.MODULE_EXTENT.WIDTH;
     },
     get HEIGHT() {
-      return this.HEIGHT_EXTRA + DETECTOR_LAYOUT.EXTENTS.Y;
+      return this.HEIGHT_EXTRA + VIEWBOX_LAYOUT.MODULE_EXTENT.HEIGHT;
     },
   },
 } as const;
 
-export const DETECTOR_EXTENTS = {
-  get x() {
-    return DETECTOR_LAYOUT.EXTENTS.X;
+export const VIEWBOX_MODULE_EXTENT = {
+  get width() {
+    return VIEWBOX_LAYOUT.MODULE_EXTENT.WIDTH;
   },
-  get y() {
-    return DETECTOR_LAYOUT.EXTENTS.Y;
+  get height() {
+    return VIEWBOX_LAYOUT.MODULE_EXTENT.HEIGHT;
   },
 };

@@ -1,23 +1,45 @@
-export const createHexagonPoints = (
-  center: { x: number; y: number },
-  radius: number,
-  moduleExtents: { x: number; y: number },
-  detectorExtents: { x: number; y: number },
-  rotate = false
-) => {
-  const scaleX = detectorExtents.x / moduleExtents.x;
-  const scaleY = detectorExtents.y / moduleExtents.y;
-  const scale = Math.min(scaleX, scaleY); // Uniform scaling to maintain aspect ratio
+// Utility types
+type Point = { x: number; y: number };
+type Extent = { width: number; height: number };
 
-  // Calculate the offset to center the coordinate system
-  const offsetX = detectorExtents.x / 2;
-  const offsetY = detectorExtents.y / 2;
+// Utility Functions
+// Fit within
+const calculateScaleFit = (fromExtent: Extent, toExtent: Extent): number => {
+  const scaleX = toExtent.width / fromExtent.width;
+  const scaleY = toExtent.height / fromExtent.height;
+  return Math.min(scaleX, scaleY);
+};
 
-  const scaledCenter = {
-    x: center.x * scale + offsetX,
-    y: center.y * scale + offsetY,
+// Non-uniform scaling (may distort)
+const calculateScaleNonUniform = (fromExtent: Extent, toExtent: Extent): Extent => {
+  return {
+    width: toExtent.width / fromExtent.width,
+    height: toExtent.height / fromExtent.height,
   };
-  const scaledRadius = (radius * scale) / 2;
+};
+
+const calculateOffset = (extent: Extent): Point => ({
+  x: extent.width / 2,
+  y: extent.height / 2,
+});
+
+const scalePoint = (point: Point, offset: Point, scale = { width: 1, height: 1 }): Point => ({
+  x: point.x * scale.width + offset.x,
+  y: offset.y - point.y * scale.height, // For traditional x-y orientation
+});
+
+// Main functions
+export const createHexagonPoints = (
+  viewboxModuleExtent: Extent,
+  layoutExtent: Extent,
+  center: Point,
+  hexagonExtent: Extent,
+  rotate = false
+): string => {
+  const offset = calculateOffset(viewboxModuleExtent);
+  const scaledCenter = scalePoint(center, offset, calculateScaleNonUniform(layoutExtent, viewboxModuleExtent));
+  const scaledRadius =
+    (Math.max(hexagonExtent.width, hexagonExtent.height) * calculateScaleFit(layoutExtent, viewboxModuleExtent)) / 2;
 
   const hexagonPoints = Array.from({ length: 6 }).map((_, index) => {
     const angle = (Math.PI / 3) * index - (rotate ? Math.PI / 2 : 0);
@@ -27,80 +49,48 @@ export const createHexagonPoints = (
     };
   });
 
-  const pointsString = hexagonPoints.map((pt) => `${pt.x.toFixed(2)},${pt.y.toFixed(2)}`).join(' ');
-  return pointsString;
+  return hexagonPoints.map((pt) => `${pt.x.toFixed(2)},${pt.y.toFixed(2)}`).join(' ');
 };
 
 export const scaleCoordinates = (
+  viewboxModuleExtent: Extent,
+  layoutExtent: Extent,
   coords: Array<[number, number]>,
-  moduleExtents: { x: number; y: number },
-  detectorExtents: { x: number; y: number }
+  hexagonExtent: Extent,
+  center: Point
 ): Array<[number, number]> => {
-  // Calculate the scale factor
-  const scaleX = detectorExtents.x / moduleExtents.x;
-  const scaleY = detectorExtents.y / moduleExtents.y;
-  const scale = Math.min(scaleX, scaleY);
+  const offset = calculateOffset(viewboxModuleExtent);
+  const layoutScale = calculateScaleNonUniform(layoutExtent, viewboxModuleExtent);
+  const hexagonScale = calculateScaleNonUniform(hexagonExtent, viewboxModuleExtent);
 
-  // Calculate the center of the detector view box
-  const centerX = detectorExtents.x / 2;
-  const centerY = detectorExtents.y / 2;
+  const hexagonToLayoutScale = {
+    width: hexagonExtent.width / layoutExtent.width,
+    height: hexagonExtent.height / layoutExtent.height
+  };
 
-  const scaledCoords: Array<[number, number]> = coords.map(([x, y]) => [
-    x * scale + centerX,
-    centerY - y * scale, // For traditional x-y orientation
-  ]);
+  // Calculate the final scale for the coordinates
+  const finalScale = {
+    width: hexagonScale.width * hexagonToLayoutScale.width,
+    height: hexagonScale.height * hexagonToLayoutScale.height
+  };
 
-  return scaledCoords;
-};
+  // Scale the center point
+  const scaledCenter = scalePoint(center, offset, layoutScale);
 
-export const scaleRadius = (
-  radius: number,
-  moduleExtents: { x: number; y: number },
-  detectorExtents: { x: number; y: number }
-): number => {
-  const scaleX = detectorExtents.x / moduleExtents.x;
-  const scaleY = detectorExtents.y / moduleExtents.y;
-  const scale = Math.min(scaleX, scaleY);
+  return coords.map(([x, y]) => {
+    // Scale the coordinates
+    const scaledX = x * finalScale.width;
+    const scaledY = y * finalScale.height;
 
-  return radius * scale;
-};
-
-export const createLineComponents = (
-  moduleExtents: { x: number; y: number },
-  detectorExtents: { X: number; Y: number },
-  rotate90 = false
-) => {
-  const scaleX = detectorExtents.X / moduleExtents.x;
-  const scaleY = detectorExtents.Y / moduleExtents.y;
-  const scale = Math.min(scaleX, scaleY);
-
-  const offsetX = detectorExtents.X / 2;
-  const offsetY = detectorExtents.Y / 2;
-
-  const hexagonPoints = calculateHexagonalPoints(moduleExtents, rotate90).map((point) => ({
-    x: point.x * scale + offsetX,
-    y: point.y * scale + offsetY,
-  }));
-
-  const xCenter = offsetX;
-  const yCenter = offsetY;
-
-  return hexagonPoints
-    .filter((_, index) => [0, 2, 4].includes(index))
-    .map((point) => <line key={`${point.x},${point.y}`} x1={xCenter} y1={yCenter} x2={point.x} y2={point.y} />);
-};
-
-const calculateHexagonalPoints = (extents: { x: number; y: number }, rotate90 = false) => {
-  const xCenter = extents.x / 2;
-  const yCenter = extents.y / 2;
-  const radius = Math.min(extents.x, extents.y) / 2;
-
-  // Generate hexagonal points, optionally rotated by 90 degrees
-  return Array.from({ length: 6 }).map((_, index) => {
-    const angle = (Math.PI / 3) * index - (rotate90 ? Math.PI / 2 : 0);
-    return {
-      x: xCenter + radius * Math.cos(angle),
-      y: yCenter + radius * Math.sin(angle),
-    };
+    // Position the scaled coordinates relative to the scaled center
+    return [
+      scaledCenter.x + scaledX,
+      scaledCenter.y - scaledY, // Invert Y for SVG coordinate system
+    ];
   });
+};
+
+export const scaleRadius = (radius: number, fromExtent: Extent, toExtent: Extent): number => {
+  const scale = calculateScaleFit(fromExtent, toExtent);
+  return radius * scale;
 };

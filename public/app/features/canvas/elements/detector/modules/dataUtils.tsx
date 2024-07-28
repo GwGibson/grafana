@@ -14,40 +14,11 @@ export const detectorOptions = Object.entries(ModuleMap).map(([key]) => ({
   label: key as DetectorType,
 }));
 
-// Information from the module layout input
-export interface ModuleLayout {
-  sensorRadii: number;
-  moduleExtents: { x: number; y: number };
-  hexagons: HexagonInfo[];
-}
-
-export interface HexagonInfo {
-  name: string;
-  center: [number, number];
-  radius: number;
-  color: string;
-  rotated: boolean;
-  networks: NetworkInfo[];
-}
-
-interface NetworkInfo {
-  name: string;
-  sensors: SensorInfo[];
-}
-
-export interface SensorInfo {
-  id: number;
-  position: [number, number];
-  rotation: number;
-  sweepFlag: number;
-  isDark: boolean;
-}
-
 // Data needed to display the module layout on the canvas
 export interface HexagonData {
   name: string;
   center: { x: number; y: number };
-  radius: number;
+  extent: { width: number; height: number };
   color: string;
   points: string;
 }

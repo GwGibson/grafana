@@ -20,7 +20,8 @@ import {
   NORMALIZED_MIN,
 } from './colorbar/colorbar';
 import { DetectorArrayEditor, DetectorNetworkEditor } from './detectorEditors';
-import { DETECTOR_EXTENTS, DETECTOR_LAYOUT } from './layout';
+import { VIEWBOX_MODULE_EXTENT, VIEWBOX_LAYOUT } from './layout';
+import { detectorOptions, getDefaultDetectorType } from './modules/dataUtils';
 import {
   DetectorType,
   GenerateModuleDisplay,
@@ -28,11 +29,10 @@ import {
   ModuleDisplayData,
   updateSensorMeasurements,
 } from './modules/moduleFactory';
-import { detectorOptions, getDefaultDetectorType } from './modules/moduleUtils';
 import { updateChannelMapping } from './utils/sensorUtils';
 
 export interface DetectorData {
-  // True -> render mode, False -> display mode
+  // True -> render mode (canvas, no hover text/link), False -> display mode (svg, hover text & link)
   renderMode: boolean;
   detectorType: DetectorType;
   measurements: number[];
@@ -93,8 +93,8 @@ const DetectorDisplay: React.FC<CanvasElementProps<DetectorConfig, DetectorData>
 
   return (
     <svg
-      viewBox={`${DETECTOR_LAYOUT.VIEWBOX.START_X} ${DETECTOR_LAYOUT.VIEWBOX.START_Y}
-                ${DETECTOR_LAYOUT.VIEWBOX.WIDTH} ${DETECTOR_LAYOUT.VIEWBOX.HEIGHT}`}
+      viewBox={`${VIEWBOX_LAYOUT.VIEWBOX.START_X} ${VIEWBOX_LAYOUT.VIEWBOX.START_Y}
+                ${VIEWBOX_LAYOUT.VIEWBOX.WIDTH} ${VIEWBOX_LAYOUT.VIEWBOX.HEIGHT}`}
       fill="none"
       preserveAspectRatio="xMidYMid meet"
       style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
@@ -107,10 +107,10 @@ const DetectorDisplay: React.FC<CanvasElementProps<DetectorConfig, DetectorData>
           maxMeasurement={data.colorData.maxMeasurement}
           normalized={data.variableData.normalized}
           dimensions={{
-            x: DETECTOR_LAYOUT.COLORBAR.X,
-            y: DETECTOR_LAYOUT.COLORBAR.Y,
-            width: DETECTOR_LAYOUT.COLORBAR.WIDTH,
-            height: DETECTOR_LAYOUT.COLORBAR.HEIGHT,
+            x: VIEWBOX_LAYOUT.COLORBAR.X,
+            y: VIEWBOX_LAYOUT.COLORBAR.Y,
+            width: VIEWBOX_LAYOUT.COLORBAR.WIDTH,
+            height: VIEWBOX_LAYOUT.COLORBAR.HEIGHT,
           }}
         />
         <GenerateModuleDisplay {...moduleDisplayData} />
@@ -130,8 +130,8 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
   description: 'Detector element for historical live-viewing',
   display: DetectorDisplay,
   defaultSize: {
-    width: DETECTOR_LAYOUT.VIEWBOX.WIDTH,
-    height: DETECTOR_LAYOUT.VIEWBOX.HEIGHT,
+    width: VIEWBOX_LAYOUT.VIEWBOX.WIDTH,
+    height: VIEWBOX_LAYOUT.VIEWBOX.HEIGHT,
   },
 
   getNewOptions: (options) => ({
@@ -374,7 +374,7 @@ export const getModuleDataLogic = (
   if (!data.renderMode || isPanelEditing || !config.moduleDisplayData) {
     moduleDisplayData = getModuleDisplayData(data.detectorType)({
       data,
-      extents: DETECTOR_EXTENTS,
+      viewboxModuleExtent: VIEWBOX_MODULE_EXTENT,
     });
     config.moduleDisplayData = moduleDisplayData;
   } else {
