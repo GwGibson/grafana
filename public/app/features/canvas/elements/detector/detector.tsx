@@ -169,6 +169,11 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
         : { min: DEFAULT_MIN, max: DEFAULT_MAX };
 
     // TODO: This should definitely only be updated if we are in edit mode or if the mapping has changed
+    // If channelMappingInput is empty, create identity mapping string
+    if (!config.channelMappingInput?.trim()) {
+      const mappingPairs = Array.from({ length: measurements.length }, (_, i) => `${i + 1}:${i + 1}`);
+      config.channelMappingInput = mappingPairs.join(', ');
+    }
     const channelMapping = parseChannelMapping(config.channelMappingInput);
 
     return {
@@ -333,21 +338,38 @@ export const getDetectorStaticStyles = () => (theme: GrafanaTheme2) => ({
 });
 
 const parseChannelMapping = (inputText: string): number[] => {
-  if (!inputText.length) {
+  if (!inputText.trim().length) {
     return [];
   }
 
-  const expectedParts = 1;
-  const parts = inputText.trim().split(/\s+/);
-  const mappings: number[] = [];
+  try {
+    const pairs = inputText.split(',').map((s) => s.trim());
+    const result: number[] = [];
 
-  for (let i = 0; i < parts.length; i += expectedParts) {
-    const channel = parseInt(parts[i], 10);
+    for (const pair of pairs) {
+      const [sensorStr, channelStr] = pair.split(':').map((s) => s.trim());
+      const sensor = parseInt(sensorStr, 10);
+      const channel = parseInt(channelStr, 10);
 
-    if (isNaN(channel)) {
-      return [];
+      if (isNaN(sensor) || isNaN(channel)) {
+        console.warn(`Invalid mapping pair: ${pair}. Skipping.`);
+        continue;
+      }
+
+      // Subtract 1 from sensor index to convert from 1-based to 0-based
+      const sensorIndex = sensor - 1;
+
+      // Make the array long enough to hold this index
+      if (sensorIndex >= result.length) {
+        result.length = sensorIndex + 1;
+      }
+
+      result[sensorIndex] = channel;
     }
-    mappings.push(channel);
+
+    return result;
+  } catch (error) {
+    console.error('Error parsing channel mapping:', error);
+    return [];
   }
-  return mappings;
 };

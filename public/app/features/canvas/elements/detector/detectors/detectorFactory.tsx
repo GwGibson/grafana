@@ -180,17 +180,15 @@ const generateSensorLayout = (
 
       hexagon.networks.forEach((network, networkIndex) => {
         if (selectedNetworks.includes(network.name)) {
-          const sensorStartIndex = hexagon.networkStartIndices[networkIndex];
+          const sensorStartIndex = hexagon.networkStartIndices[networkIndex]; // Starts at 0 for each hexagon config
           network.sensors.forEach((sensor, index) => {
             const sensorIndex = sensorStartIndex + index;
-            // If the sensorIndex is out of bounds, we set the channel to sensorIndex + 1 as this works well
-            // when no mapping is specified. Obviously can be a problem if user provided mapping is incomplete
-            // as there may be sensors without a channel or multiple sensors with the same channel
-            // Not sure this is a good approach but leaving it for now until more clear how the measurements
-            // will be handled
-            const mappedChannel = sensorIndex < channelMapping.length ? channelMapping[sensorIndex] : sensorIndex + 1;
+            // If no mapping exists, we set the index to be out of bounds so it will display as inactive
+            // Kinda of sucks
+            const mappedChannel =
+              channelMapping[sensorIndex] !== undefined ? channelMapping[sensorIndex] : -1;
             const sensorId = `(${network.name}): ${index + 1}`;
-            // TODO: This kind of sucks
+            // TODO: This kind of sucks too
             // Can't use index directly as sensors will all overlap in a given hexagon
             // Can't use sensorIndex directly or we will go out of bounds on scaledCoords
             const scaledCoordsIndex =
@@ -235,12 +233,14 @@ export const updateSensorMeasurements = (
       return null;
     }
 
-    const isActive = sensor.channel < measurements.length;
+    // Sensor channels are 1-based but measurements 0-based
+    const measurementIndex = sensor.channel - 1;
+    const isActive = measurementIndex < measurements.length && measurementIndex >= 0;
 
     // Always update fillColor
     const fillColor = getColor(
       measurements,
-      sensor.channel,
+      measurementIndex,
       colorBar,
       minMeasurement,
       maxMeasurement,
@@ -255,10 +255,10 @@ export const updateSensorMeasurements = (
 
     // Only update text and textFillColor if we are in display mode (not render mode)
     if (displayMode) {
-      updatedSensor.text = isActive ? measurements[sensor.channel].toFixed(2) : 'Inactive';
+      updatedSensor.text = isActive ? measurements[measurementIndex].toFixed(2) : 'Inactive';
       const activeTextFillColor = getColor(
         measurements,
-        sensor.channel,
+        measurementIndex,
         colorBar,
         minMeasurement,
         maxMeasurement,
