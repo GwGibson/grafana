@@ -1,6 +1,6 @@
 import { getColor } from '../colorbar/colorbar';
 import { DetectorColorData, DetectorConfig, DetectorData, DisplayMode } from '../detector';
-import { generateSensorLink } from '../renderers/sharedTypes';
+// import { generateSensorLink } from '../renderers/sharedTypes';
 import { createHexagonPoints, scaleCoordinates, scaleRadius } from '../utils/geometry';
 import { DETECTOR_VIEWBOX_EXTENT } from '../utils/layout';
 
@@ -143,7 +143,7 @@ const generateSensorLayout = (
   detectorViewboxExtent: { width: number; height: number },
   detectorLayout: DetectorLayout
 ): SensorData[] => {
-  const { channelMapping, baseURL } = data.mappingData;
+  const { channelMapping } = data.mappingData;
   const { selectedArrays, selectedNetworks } = data.displayData;
 
   // Pre-calculate the total number of sensors
@@ -163,8 +163,8 @@ const generateSensorLayout = (
   // Pre-allocate the array
   const sensorData: SensorData[] = new Array(totalSensors);
 
-  const numMeasurements = data.measurements.length;
-  const numMeasurementDigits = String(numMeasurements).length;
+  // const numMeasurements = data.measurements.length;
+  // const numMeasurementDigits = String(numMeasurements).length;
 
   detectorLayout.hexagons.forEach((hexagon) => {
     if (selectedArrays.includes(hexagon.name)) {
@@ -185,8 +185,7 @@ const generateSensorLayout = (
             const sensorIndex = sensorStartIndex + index;
             // If no mapping exists, we set the index to be out of bounds so it will display as inactive
             // Kinda of sucks
-            const mappedChannel =
-              channelMapping[sensorIndex] !== undefined ? channelMapping[sensorIndex] : -1;
+            const mappedChannel = channelMapping[sensorIndex] !== undefined ? channelMapping[sensorIndex] : -1;
             const sensorId = `(${network.name}): ${index + 1}`;
             // TODO: This kind of sucks too
             // Can't use index directly as sensors will all overlap in a given hexagon
@@ -202,7 +201,7 @@ const generateSensorLayout = (
               isDark: sensor.isDark,
               radius: scaledSensorRadii,
               channel: mappedChannel,
-              sensorLink: generateSensorLink(baseURL, mappedChannel, numMeasurements, numMeasurementDigits),
+              sensorLink: '', // generateSensorLink(baseURL, mappedChannel, numMeasurements, numMeasurementDigits), // Temp disable
               isActive: false,
               fillColor: '',
               text: '',

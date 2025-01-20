@@ -54,7 +54,7 @@ const Sensor: React.FC<{ configData: SensorProps }> = ({ configData }) => {
   const dPath = `M ${x - radius} ${y} A ${radius} ${radius} 0 0 ${configData.sweepFlag} ${x + radius} ${y} L ${x} ${y} Z`;
 
   const strokeWidth = radius / 32;
-  const strokeColor = configData.isDark ? 'brown' : 'black';
+  const strokeColor = configData.isDark ? ('brown' as const) : ('black' as const);
 
   const sensor = (
     <g onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
@@ -74,7 +74,7 @@ const Sensor: React.FC<{ configData: SensorProps }> = ({ configData }) => {
           className={styles.hoverText}
         >
           <tspan x={DETECTOR_VIEWBOX_EXTENT.width / 2} dy="0">
-            {configData.id} | Channel: {configData.channel}
+            Channel: {configData.channel} | {configData.id}
           </tspan>
           <tspan x={DETECTOR_VIEWBOX_EXTENT.width / 2} dy="1.2em">
             ({configData.unscaledPosition[0]}, {configData.unscaledPosition[1]}) → (
@@ -88,13 +88,14 @@ const Sensor: React.FC<{ configData: SensorProps }> = ({ configData }) => {
     </g>
   );
 
-  if (configData.isActive && configData.displayMode) {
-    return (
-      <a href={configData.sensorLink} target="_blank" rel="noreferrer">
-        {sensor}
-      </a>
-    );
-  }
+  // Temporarily disable
+  // if (configData.isActive && configData.displayMode) {
+  //   return (
+  //     <a href={configData.sensorLink} target="_blank" rel="noreferrer">
+  //       {sensor}
+  //     </a>
+  //   );
+  // }
 
   return sensor;
 };

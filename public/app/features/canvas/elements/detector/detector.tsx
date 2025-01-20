@@ -273,7 +273,7 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
         category,
         path: 'config.channelMappingInput',
         name: 'Channel Mapping Input',
-        description: 'Input channels and they will be mapped to sensor ids in ascending order',
+        description: 'Input channel to sensor pairs in the form 1:1, 2:200, ...',
         settings: {
           id: 'channel-mapping-input',
           label: 'Channel Mapping Input',
@@ -347,11 +347,11 @@ const parseChannelMapping = (inputText: string): number[] => {
     const result: number[] = [];
 
     for (const pair of pairs) {
-      const [sensorStr, channelStr] = pair.split(':').map((s) => s.trim());
-      const sensor = parseInt(sensorStr, 10);
+      const [channelStr, sensorStr] = pair.split(':').map((s) => s.trim());
       const channel = parseInt(channelStr, 10);
+      const sensor = parseInt(sensorStr, 10);
 
-      if (isNaN(sensor) || isNaN(channel)) {
+      if (isNaN(channel) || isNaN(sensor)) {
         console.warn(`Invalid mapping pair: ${pair}. Skipping.`);
         continue;
       }
