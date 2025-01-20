@@ -34,7 +34,7 @@ export const getColor = (
   colorBarType: ColorBar,
   colorBarMin: number,
   colorBarMax: number,
-  outOfRangeFactor: number
+  outOfRangePercentage: number
 ): string => {
   const scheme = ColorBarData[colorBarType].scheme;
   if (index >= measurements.length || index < 0) {
@@ -42,16 +42,21 @@ export const getColor = (
   }
 
   const measurement = measurements[index];
+  const range = colorBarMax - colorBarMin; // Assume min always < max
+
+  // Calculate the extended range boundaries using percentages
+  const extendedMin = colorBarMin - range * outOfRangePercentage;
+  const extendedMax = colorBarMax + range * outOfRangePercentage;
+
   if (measurement < colorBarMin) {
-    // Assuming colorBarMin is negative here
-    return measurement < colorBarMin * outOfRangeFactor ? scheme.lowColor : scheme.colors[0];
+    return measurement < extendedMin ? scheme.lowColor : scheme.colors[0];
   }
   if (measurement > colorBarMax) {
-    // Assuming colorBarMax is positive here
-    return measurement > colorBarMax * outOfRangeFactor ? scheme.highColor : scheme.colors[COLOR_SCALE_SIZE - 1];
+    return measurement > extendedMax ? scheme.highColor : scheme.colors[COLOR_SCALE_SIZE - 1];
   }
+
   // Normalize the measurement to [0, 1]
-  const normalizedMeasurement = (measurement - colorBarMin) / (colorBarMax - colorBarMin);
+  const normalizedMeasurement = (measurement - colorBarMin) / range;
   const scaledIndex = Math.floor(normalizedMeasurement * COLOR_SCALE_SIZE);
   // Ensuring we don't go out of bounds (probably not necessary)
   const clampedIndex = Math.max(0, Math.min(scaledIndex, COLOR_SCALE_SIZE - 1));

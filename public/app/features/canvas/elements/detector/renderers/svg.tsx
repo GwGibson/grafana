@@ -74,7 +74,7 @@ const Sensor: React.FC<{ configData: SensorProps }> = ({ configData }) => {
           className={styles.hoverText}
         >
           <tspan x={DETECTOR_VIEWBOX_EXTENT.width / 2} dy="0">
-            Channel: {configData.channel} | {configData.id}
+            Channel: {configData.channel === -1 ? '(unmapped)' : configData.channel} | {configData.id}
           </tspan>
           <tspan x={DETECTOR_VIEWBOX_EXTENT.width / 2} dy="1.2em">
             ({configData.unscaledPosition[0]}, {configData.unscaledPosition[1]}) → (

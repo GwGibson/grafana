@@ -223,8 +223,8 @@ export const updateSensorMeasurements = (
   displayMode: boolean
 ): SensorData[] => {
   // TODO: These 2 factors -> part of color bar interface?
-  const TEXT_OUT_OF_RANGE_FACTOR = 1 as const;
-  const FILL_OUT_OF_RANGE_FACTOR = 8 as const;
+  const TEXT_OUT_OF_RANGE_PERCENTAGE = 0.2 as const; 
+  const FILL_OUT_OF_RANGE_PERCENTAGE = 0.2 as const; 
   const { colorBar, minMeasurement, maxMeasurement } = colorData;
 
   const result = sensorData.map((sensor) => {
@@ -243,7 +243,7 @@ export const updateSensorMeasurements = (
       colorBar,
       minMeasurement,
       maxMeasurement,
-      FILL_OUT_OF_RANGE_FACTOR
+      TEXT_OUT_OF_RANGE_PERCENTAGE
     );
 
     let updatedSensor: SensorData = {
@@ -261,7 +261,7 @@ export const updateSensorMeasurements = (
         colorBar,
         minMeasurement,
         maxMeasurement,
-        TEXT_OUT_OF_RANGE_FACTOR
+        FILL_OUT_OF_RANGE_PERCENTAGE
       );
       updatedSensor.textFillColor = isActive ? activeTextFillColor : 'red';
     }
