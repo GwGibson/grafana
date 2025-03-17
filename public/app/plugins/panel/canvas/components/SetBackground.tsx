@@ -5,10 +5,11 @@ import { GrafanaTheme2 } from '@grafana/data';
 import { ResourceDimensionMode } from '@grafana/schema';
 import { Portal, useTheme2 } from '@grafana/ui';
 import { Scene } from 'app/features/canvas/runtime/scene';
-import { MediaType, ResourceFolderName } from 'app/features/dimensions';
 import { ResourcePickerPopover } from 'app/features/dimensions/editors/ResourcePickerPopover';
+import { MediaType, ResourceFolderName } from 'app/features/dimensions/types';
 
 import { AnchorPoint } from '../types';
+
 
 type Props = {
   onClose: () => void;

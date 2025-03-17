@@ -17,7 +17,7 @@ import {
   EventBus,
 } from '@grafana/data';
 import { ComparisonOperation } from '@grafana/schema';
-import { findField } from 'app/features/dimensions';
+import { findField } from 'app/features/dimensions/utils';
 
 import { StyleEditor } from '../../editor/StyleEditor';
 import { polyStyle } from '../../style/markers';
@@ -27,7 +27,6 @@ import { FeatureRuleConfig, FeatureStyleConfig } from '../../types';
 import { checkFeatureMatchesStyleRule } from '../../utils/checkFeatureMatchesStyleRule';
 import { getLayerPropertyInfo } from '../../utils/getFeatures';
 import { getStyleDimension, getPublicGeoJSONFiles } from '../../utils/utils';
-
 
 export interface DynamicGeoJSONMapperConfig {
   // URL for a geojson file

@@ -1,0 +1,13 @@
+{
+  "name": "Grafana Development",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "settings": {
+    "terminal.integrated.shell.linux": "/bin/bash"
+  },
+  "extensions": ["golang.go", "ms-vscode.cpptools", "dbaeumer.vscode-eslint", "esbenp.prettier-vscode"],
+  "forwardPorts": [3000],
+  "remoteUser": "root",
+  "mounts": ["source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind"]
+}

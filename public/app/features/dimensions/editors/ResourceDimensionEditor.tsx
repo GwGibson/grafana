@@ -6,10 +6,11 @@ import { ResourceDimensionConfig, ResourceDimensionMode } from '@grafana/schema'
 import { InlineField, InlineFieldRow, RadioButtonGroup } from '@grafana/ui';
 import { FieldNamePicker } from '@grafana/ui/internal';
 
-import { getPublicOrAbsoluteUrl, ResourceFolderName } from '..';
-import { MediaType, ResourceDimensionOptions, ResourcePickerSize } from '../types';
+import { getPublicOrAbsoluteUrl } from '../resource';
+import { MediaType, ResourceDimensionOptions, ResourceFolderName, ResourcePickerSize } from '../types';
 
 import { ResourcePicker } from './ResourcePicker';
+
 
 const resourceOptions = [
   { label: 'Fixed', value: ResourceDimensionMode.Fixed, description: 'Fixed value' },
