@@ -3,7 +3,7 @@ import { css } from '@emotion/css';
 import { GrafanaTheme2, PanelOptionsEditorBuilder, SelectableValue } from '@grafana/data';
 import { ScalarDimensionConfig } from '@grafana/schema';
 import { usePanelContext } from '@grafana/ui';
-import { DimensionContext } from 'app/features/dimensions';
+import { DimensionContext } from 'app/features/dimensions/context';
 import { ScalarFieldDimensionEditor } from 'app/features/dimensions/editors';
 // import { APIEditor } from 'app/plugins/panel/canvas/editor/element/APIEditor';
 
