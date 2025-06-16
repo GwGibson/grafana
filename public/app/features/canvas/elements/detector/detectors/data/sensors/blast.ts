@@ -1,6 +1,7 @@
 import { NetworkInfo } from '../../builderUtils';
 
-export const BLAST_SENSORS: NetworkInfo[] = [
+export function createBlastSensors(): NetworkInfo[] {
+return [
     {
       name: '1',
       sensors: [
@@ -472,6 +473,7 @@ export const BLAST_SENSORS: NetworkInfo[] = [
         { position: [0.0, -4330.13], rotation: 0, sweepFlag: 1, isDark: false },
         { position: [-2500.0, 0.0], rotation: 0, sweepFlag: 1, isDark: false },
         { position: [2500.0, 0.0], rotation: 0, sweepFlag: 1, isDark: false },
-      ],
+      ]
     },
   ]as const;
+}

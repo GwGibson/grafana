@@ -230,7 +230,7 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
           options: [
             { label: 'Info', value: DisplayMode.DISPLAY },
             { label: 'Render', value: DisplayMode.RENDER },
-            { label: 'Experimental', value: DisplayMode.FAST_RENDER },
+            // { label: 'Experimental', value: DisplayMode.FAST_RENDER },
           ] as Array<SelectableValue<DisplayMode>>,
         },
         defaultValue: DisplayMode.DISPLAY,

@@ -1,8 +1,8 @@
 import { createHexagon, DetectorLayout, HexagonInfo } from '../builderUtils';
 
 import { componentMap } from './componentMap';
-import { AL_SENSORS } from './sensors/al';
-import { TIN_SENSORS } from './sensors/tin';
+import { createALSensors } from './sensors/al';
+import { createTinSensors } from './sensors/tin';
 
 const AL_CONFIG = {
   extent: { width: 140000, height: 140000 },
@@ -19,7 +19,7 @@ export const AL_HEXAGON_LEFT: Readonly<HexagonInfo> = createHexagon({
   sensorRadii: AL_CONFIG.sensorRadii,
   color: AL_CONFIG.color,
   rotateHexagon: AL_CONFIG.rotateHexagon,
-  networks: AL_SENSORS,
+  networks: createALSensors(),
   networkRotationAngle: 120,
 }as const);
 
@@ -31,7 +31,7 @@ export const AL_HEXAGON_RIGHT: Readonly<HexagonInfo> = createHexagon({
   sensorRadii: AL_CONFIG.sensorRadii,
   color: AL_CONFIG.color,
   rotateHexagon: AL_CONFIG.rotateHexagon,
-  networks: AL_SENSORS,
+  networks: createALSensors(),
   networkRotationAngle: 0,
 }as const);
 
@@ -43,7 +43,7 @@ export const TIN_HEXAGON: Readonly<HexagonInfo> = createHexagon({
   sensorRadii: 500,
   color: '#D3D4D5',
   rotateHexagon: true,
-  networks: TIN_SENSORS,
+  networks: createTinSensors(),
   networkRotationAngle: 60,
 }as const);
 
@@ -57,7 +57,7 @@ export const AL_HEXAGON_LEFT_SOLO: Readonly<HexagonInfo> = createHexagon({
   sensorRadii: 1000,
   color: AL_CONFIG.color,
   rotateHexagon: AL_CONFIG.rotateHexagon,
-  networks: AL_SENSORS,
+  networks: createALSensors(),
   networkRotationAngle: 120,
 }as const);
 
@@ -69,7 +69,7 @@ export const AL_HEXAGON_RIGHT_SOLO: Readonly<HexagonInfo> = createHexagon({
   sensorRadii: 1000,
   color: AL_CONFIG.color,
   rotateHexagon: AL_CONFIG.rotateHexagon,
-  networks: AL_SENSORS,
+  networks: createALSensors(),
   networkRotationAngle: 0,
 }as const);
 
@@ -81,7 +81,7 @@ export const TIN_HEXAGON_SOLO: Readonly<HexagonInfo> = createHexagon({
   sensorRadii: 1000,
   color: '#D3D4D5',
   rotateHexagon: true,
-  networks: TIN_SENSORS,
+  networks: createTinSensors(),
   networkRotationAngle: 60,
 }as const);
 

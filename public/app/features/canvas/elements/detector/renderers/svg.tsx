@@ -28,8 +28,8 @@ const GenerateSVGModuleDisplay: React.FC<DetectorComponentData> = ({ hexagons, s
           fill={hexagon.color}
         />
       ))}
-      {sensors.map((sensor) => (
-        <Sensor key={sensor.id} configData={sensor} />
+      {sensors.map((sensor, index) => (
+        <Sensor key={`sensor-${index}-${sensor.id}`} configData={sensor} />
       ))}
     </g>
   );
