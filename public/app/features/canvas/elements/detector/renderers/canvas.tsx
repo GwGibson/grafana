@@ -48,6 +48,7 @@ export const DetectorCanvas: React.FC<RenderProps> = ({ detectorComponentData, d
       },
     });
 
+    // Pre-create sensor paths
     const sensorPath0 = new Path2D();
     sensorPath0.moveTo(-1, 0);
     sensorPath0.arc(0, 0, 1, Math.PI, 0, false);
@@ -78,7 +79,9 @@ export const DetectorCanvas: React.FC<RenderProps> = ({ detectorComponentData, d
       ctx.lineWidth = 0.125;
 
       sensors.forEach((sensor) => {
-        const [x, y] = sensor.scaledPosition;
+        // Access coordinates from Float32Array
+        const x = sensor.scaledPosition[0];
+        const y = sensor.scaledPosition[1];
         const radius = sensor.radius;
 
         ctx.save();
@@ -109,13 +112,16 @@ export const DetectorCanvas: React.FC<RenderProps> = ({ detectorComponentData, d
       return;
     }
 
-    const offscreenCanvas = document.createElement('canvas');
-    offscreenCanvas.width = VIEWBOX_LAYOUT.VIEWBOX.WIDTH;
-    offscreenCanvas.height = VIEWBOX_LAYOUT.VIEWBOX.HEIGHT;
-    offscreenCanvasRef.current = offscreenCanvas;
+    // Create offscreen canvas only once
+    if (!offscreenCanvasRef.current) {
+      const offscreenCanvas = document.createElement('canvas');
+      offscreenCanvas.width = VIEWBOX_LAYOUT.VIEWBOX.WIDTH;
+      offscreenCanvas.height = VIEWBOX_LAYOUT.VIEWBOX.HEIGHT;
+      offscreenCanvasRef.current = offscreenCanvas;
+    }
 
     renderAllContent();
-  }); // Dependencies to re-render when data changes
+  }); // Re-render when data changes
 
   return (
     <canvas

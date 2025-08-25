@@ -29,7 +29,7 @@ export const getColorBarKey = (key: ColorBar): ColorBar => key;
 export const getDefaultColorBar = (): ColorBar => 'coolwarm';
 
 export const getColor = (
-  measurements: number[],
+  measurements: number[] | Float32Array,  // Now accepts Float32Array
   index: number,
   colorBarType: ColorBar,
   colorBarMin: number,

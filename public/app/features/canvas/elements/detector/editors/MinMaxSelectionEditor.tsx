@@ -96,11 +96,11 @@ export const MinMaxSelectionEditor: React.FC<Props> = ({ value, context, onChang
 };
 
 const getStyles = () => ({
-  fieldContainer: css`
-    display: flex;
-    align-items: center;
-    > * + * {
-      margin-left: 4px;
-    }
-  `,
+  fieldContainer: css({
+    display: 'flex',
+    alignItems: 'center',
+    '& > * + *': {
+      marginLeft: '4px',
+    },
+  }),
 });

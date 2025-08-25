@@ -297,8 +297,8 @@ export const DetectorWebGLCanvas: React.FC<RenderProps> = ({ detectorComponentDa
                 // Translation buffer
                 const translationBuffer = gl.createBuffer();
                 gl.bindBuffer(gl.ARRAY_BUFFER, translationBuffer);
-                const translations = sensors.flatMap(s => s.scaledPosition);
-                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(translations), gl.STATIC_DRAW);
+                const translations = new Float32Array(sensors.flatMap(s => [...s.scaledPosition]));
+                gl.bufferData(gl.ARRAY_BUFFER, translations, gl.STATIC_DRAW);
                 gl.enableVertexAttribArray(translationLocation);
                 gl.vertexAttribPointer(translationLocation, 2, gl.FLOAT, false, 0, 0);
 

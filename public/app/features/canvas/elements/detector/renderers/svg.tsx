@@ -6,8 +6,9 @@ import { ColorBarDisplay } from '../colorbar/colorbar';
 import { getDetectorStaticStyles } from '../detector';
 import { DetectorComponentData } from '../detectors/detectorFactory';
 import { VIEWBOX_LAYOUT, DETECTOR_VIEWBOX_EXTENT } from '../utils/layout';
+import { PooledSensorData } from '../utils/sensorDataPool';
 
-import { RenderProps, SensorProps } from './sharedTypes';
+import { RenderProps } from './sharedTypes';
 
 const GenerateSVGModuleDisplay: React.FC<DetectorComponentData> = ({ hexagons, sensors }): JSX.Element => {
   const staticStyles = useStyles2(getDetectorStaticStyles());
@@ -17,6 +18,7 @@ const GenerateSVGModuleDisplay: React.FC<DetectorComponentData> = ({ hexagons, s
     }
     return points;
   };
+
   return (
     <g>
       {hexagons.map((hexagon, index) => (
@@ -35,7 +37,7 @@ const GenerateSVGModuleDisplay: React.FC<DetectorComponentData> = ({ hexagons, s
   );
 };
 
-const Sensor: React.FC<{ configData: SensorProps }> = ({ configData }) => {
+const Sensor: React.FC<{ configData: PooledSensorData }> = ({ configData }) => {
   const theme = useTheme2();
   const styles = useStyles2(getDetectorStaticStyles());
   const [isHovered, setIsHovered] = useState(false);
@@ -48,7 +50,9 @@ const Sensor: React.FC<{ configData: SensorProps }> = ({ configData }) => {
     setIsHovered(false);
   };
 
-  const [x, y] = configData.scaledPosition;
+  // Access coordinates from Float32Array
+  const x = configData.scaledPosition[0];
+  const y = configData.scaledPosition[1];
   const radius = configData.radius;
   const transform = `rotate(${configData.rotation}, ${x}, ${y})`;
   const dPath = `M ${x - radius} ${y} A ${radius} ${radius} 0 0 ${configData.sweepFlag} ${x + radius} ${y} L ${x} ${y} Z`;
@@ -77,8 +81,7 @@ const Sensor: React.FC<{ configData: SensorProps }> = ({ configData }) => {
             Channel: {configData.channel === -1 ? '(unmapped)' : configData.channel} | {configData.id}
           </tspan>
           <tspan x={DETECTOR_VIEWBOX_EXTENT.width / 2} dy="1.2em">
-            ({configData.unscaledPosition[0]}, {configData.unscaledPosition[1]}) → (
-            {configData.scaledPosition[0].toFixed(2)}, {configData.scaledPosition[1].toFixed(2)})
+            ({configData.unscaledPosition[0]}, {configData.unscaledPosition[1]}) → ({x.toFixed(2)}, {y.toFixed(2)})
           </tspan>
           <tspan x={DETECTOR_VIEWBOX_EXTENT.width / 2} dy="1.2em" style={{ fill: configData.textFillColor }}>
             {`(${configData.text})`}
@@ -87,15 +90,6 @@ const Sensor: React.FC<{ configData: SensorProps }> = ({ configData }) => {
       )}
     </g>
   );
-
-  // Temporarily disable
-  // if (configData.isActive && configData.displayMode) {
-  //   return (
-  //     <a href={configData.sensorLink} target="_blank" rel="noreferrer">
-  //       {sensor}
-  //     </a>
-  //   );
-  // }
 
   return sensor;
 };
