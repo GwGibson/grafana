@@ -51,7 +51,6 @@ export class DetectorDataPool {
       },
       mappingData: {
         channelMapping: new Int32Array(0), // Will be a view into channelMapping
-        baseURL: '',
       },
     };
   }
@@ -138,11 +137,10 @@ export class DetectorDataPool {
    * Get the reusable detector data object
    * This returns the same object reference every time (no allocation)
    */
-  getDetectorData(displayMode: DisplayMode, detectorType: string, baseURL: string): DetectorData {
+  getDetectorData(displayMode: DisplayMode, detectorType: string): DetectorData {
     // Update values in place
     this.detectorData.displayMode = displayMode;
     this.detectorData.detectorType = detectorType;
-    this.detectorData.mappingData.baseURL = baseURL;
 
     // Update array views (no allocation, just changing references)
     this.detectorData.measurements = this.measurements.subarray(0, this.measurementCount);

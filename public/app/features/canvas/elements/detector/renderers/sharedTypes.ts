@@ -9,7 +9,6 @@ export interface SensorProps {
   radius: number;
   sweepFlag: number;
   rotation: number;
-  sensorLink: string;
   isActive: boolean;
   fillColor: string;
   text: string;

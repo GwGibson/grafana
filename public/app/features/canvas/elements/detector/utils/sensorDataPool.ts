@@ -13,7 +13,6 @@ export interface PooledSensorData {
 
   // Dynamic properties (updated frequently)
   channel: number;
-  sensorLink: string;
   displayMode: boolean;
   isActive: boolean;
   fillColor: string;
@@ -48,7 +47,6 @@ export class SensorDataPool {
         isDark: false,
         radius: 0,
         channel: -1,
-        sensorLink: '',
         displayMode: false,
         isActive: false,
         fillColor: '',
@@ -58,9 +56,7 @@ export class SensorDataPool {
     }
   }
 
-  /**
-   * Get the maximum capacity of this pool
-   */
+
   getMaxCapacity(): number {
     return this.maxCapacity;
   }
@@ -131,7 +127,6 @@ export class SensorDataPool {
 
       sensor.isActive = isActive;
 
-      // Get color from cache or compute
       const colorKey = `${measurementIndex}_${colorBar}_${minMeasurement}_${maxMeasurement}_${TEXT_OUT_OF_RANGE_PERCENTAGE}`;
       let fillColor = this.colorCache.get(colorKey);
 
@@ -183,12 +178,8 @@ export class SensorDataPool {
     this.activeSensorCount = effectiveSensorCount;
   }
 
-  /**
-   * Format measurement value with caching for common values
-   */
   private measurementTextCache = new Map<number, string>();
   private formatMeasurement(value: number): string {
-    // Round to 2 decimal places
     const rounded = Math.round(value * 100) / 100;
 
     let text = this.measurementTextCache.get(rounded);
@@ -203,17 +194,11 @@ export class SensorDataPool {
     return text;
   }
 
-  /**
-   * Get active sensors as a view (no allocation)
-   */
   getActiveSensors(): PooledSensorData[] {
     // Return a view of the array (no new allocation)
     return this.sensors.slice(0, this.activeSensorCount);
   }
 
-  /**
-   * Get a specific sensor
-   */
   getSensor(index: number): PooledSensorData | null {
     if (index >= 0 && index < this.activeSensorCount) {
       return this.sensors[index];
@@ -222,15 +207,12 @@ export class SensorDataPool {
   }
 
   /**
-   * Clear color cache (call when color scheme changes)
+   * Clear color cache (called when color scheme changes)
    */
   clearColorCache(): void {
     this.colorCache.clear();
   }
 
-  /**
-   * Reset the pool
-   */
   reset(): void {
     this.activeSensorCount = 0;
     this.colorCache.clear();
@@ -238,9 +220,6 @@ export class SensorDataPool {
   }
 }
 
-/**
- * Singleton manager for sensor pool
- */
 class SensorDataPoolManager {
   private static instance: SensorDataPool | null = null;
 

@@ -36,7 +36,7 @@ export enum DisplayMode {
 export interface DetectorData {
   displayMode: DisplayMode;
   detectorType: string;
-  measurements: Float32Array; // Changed to Float32Array
+  measurements: Float32Array;
   displayData: DetectorDisplayData;
   colorData: DetectorColorData;
   mappingData: DetectorMappingData;
@@ -54,8 +54,7 @@ export interface DetectorColorData {
 }
 
 export interface DetectorMappingData {
-  channelMapping: Int32Array; // Changed to Int32Array
-  baseURL: string;
+  channelMapping: Int32Array;
 }
 
 export interface DetectorConfig {
@@ -64,7 +63,6 @@ export interface DetectorConfig {
   detectorType: string;
   arrays: string[];
   networks: string[];
-  baseURL: string;
   channelMappingInput: string;
   colorBar: ColorBar;
   colorBarRange: {
@@ -150,13 +148,11 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
   }),
 
   prepareData: (ctx: DimensionContext, cfg: CanvasElementOptions<DetectorConfig>): DetectorData => {
-    // Get the singleton pool instance from factory
     const dataPool = PoolFactory.getDetectorPool();
 
     if (!cfg.config) {
-      // Return default data using the pool
       dataPool.reset();
-      return dataPool.getDetectorData(DisplayMode.DISPLAY, DEFAULT_DETECTOR_SETTINGS.TYPE, '');
+      return dataPool.getDetectorData(DisplayMode.DISPLAY, DEFAULT_DETECTOR_SETTINGS.TYPE);
     }
 
     const config = cfg.config;
@@ -203,7 +199,7 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
     dataPool.updateColorData(config.colorBar, validMin, validMax);
 
     // Return the reused data object
-    return dataPool.getDetectorData(config.displayMode, config.detectorType, config.baseURL || '');
+    return dataPool.getDetectorData(config.displayMode, config.detectorType);
   },
 
   registerOptionsUI: (builder: PanelOptionsEditorBuilder<CanvasElementOptions<DetectorConfig>>) => {

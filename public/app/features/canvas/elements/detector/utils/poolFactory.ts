@@ -18,18 +18,12 @@ export class PoolFactory {
     }
 
     this.capacity = capacity;
-
-    // Initialize both pools with the same capacity
     DetectorDataPoolManager.getInstance(capacity);
     SensorDataPoolManager.getInstance(capacity);
 
     this.isInitialized = true;
   }
 
-  /**
-   * Get the detector data pool
-   * Ensures it's initialized with the correct capacity
-   */
   static getDetectorPool() {
     if (!this.isInitialized) {
       this.initializePools();
@@ -37,10 +31,6 @@ export class PoolFactory {
     return DetectorDataPoolManager.getInstance(this.capacity);
   }
 
-  /**
-   * Get the sensor data pool
-   * Ensures it's initialized with the correct capacity
-   */
   static getSensorPool() {
     if (!this.isInitialized) {
       this.initializePools();
@@ -48,24 +38,15 @@ export class PoolFactory {
     return SensorDataPoolManager.getInstance(this.capacity);
   }
 
-  /**
-   * Get the current capacity
-   */
   static getCapacity(): number {
     return this.capacity;
   }
 
-  /**
-   * Reset both pools (useful for testing or when switching detector types)
-   */
   static resetPools(): void {
     DetectorDataPoolManager.reset();
     SensorDataPoolManager.reset();
   }
 
-  /**
-   * Check if a given count would exceed capacity
-   */
   static wouldExceedCapacity(count: number): boolean {
     return count > this.capacity;
   }
@@ -79,7 +60,7 @@ export class PoolFactory {
     }
 
     // Sensor count might be different as it depends on selected networks/arrays
-    // but it shouldn't exceed the measurement count (each sensor needs a measurement)
+    // but it shouldn't exceed the measurement count
     if (sensorCount > measurementCount) {
       return false;
     }
