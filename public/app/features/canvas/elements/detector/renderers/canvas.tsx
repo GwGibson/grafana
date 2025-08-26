@@ -22,8 +22,7 @@ export const DetectorCanvas: React.FC<RenderProps> = ({ detectorComponentData, d
     }
 
     ctx.clearRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
-
-    // Render hexagons
+    
     detectorComponentData.hexagons.forEach((hexagon) => {
       const { points, color } = hexagon;
       ctx.beginPath();
@@ -79,7 +78,6 @@ export const DetectorCanvas: React.FC<RenderProps> = ({ detectorComponentData, d
       ctx.lineWidth = 0.125;
 
       sensors.forEach((sensor) => {
-        // Access coordinates from Float32Array
         const x = sensor.scaledPosition[0];
         const y = sensor.scaledPosition[1];
         const radius = sensor.radius;
@@ -121,7 +119,7 @@ export const DetectorCanvas: React.FC<RenderProps> = ({ detectorComponentData, d
     }
 
     renderAllContent();
-  }); // Re-render when data changes
+  });
 
   return (
     <canvas

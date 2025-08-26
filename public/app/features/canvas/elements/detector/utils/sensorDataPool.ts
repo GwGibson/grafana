@@ -99,7 +99,7 @@ export class SensorDataPool {
 
   /**
    * Batch update sensor measurements (called frequently)
-   * This is optimized to minimize string allocations
+   * Optimized to minimize string allocations
    */
   updateSensorMeasurements(
     measurements: Float32Array,
@@ -111,7 +111,6 @@ export class SensorDataPool {
     const FILL_OUT_OF_RANGE_PERCENTAGE = 0.2;
     const { colorBar, minMeasurement, maxMeasurement } = colorData;
 
-    // Ensure we don't exceed our capacity
     const effectiveSensorCount = Math.min(sensorCount, this.maxCapacity);
 
     if (sensorCount > this.maxCapacity) {

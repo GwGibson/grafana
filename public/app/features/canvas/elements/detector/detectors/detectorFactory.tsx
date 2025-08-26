@@ -15,7 +15,7 @@ import {
 
 export interface DetectorComponentData {
   hexagons: HexagonData[];
-  sensors: PooledSensorData[]; // Now using pooled sensors
+  sensors: PooledSensorData[];
 }
 
 interface HexagonData {
@@ -62,13 +62,9 @@ export const getDetectorComponentData = (
     const selectedArrays = data.displayData.selectedArrays;
     const detectorConfig = getDetectorConfig(data.detectorType, selectedArrays);
 
-    // Generate hexagons (these don't change frequently)
     const hexagons = generateDetectorLayout(selectedArrays, DETECTOR_VIEWBOX_EXTENT, detectorConfig);
-
-    // Initialize sensors in the pool
     initializeSensorPool(data, DETECTOR_VIEWBOX_EXTENT, detectorConfig, sensorPool, displayMode);
 
-    // Update measurements
     sensorPool.updateSensorMeasurements(
       data.measurements,
       data.colorData,
@@ -81,11 +77,9 @@ export const getDetectorComponentData = (
       sensors: sensorPool.getActiveSensors(),
     };
 
-    // Cache the component data
     config.DetectorComponentData = newComponentData;
     return newComponentData;
   } else {
-    // Just update measurements in the existing pool
     sensorPool.updateSensorMeasurements(
       data.measurements,
       data.colorData,
@@ -185,7 +179,6 @@ const initializeSensorPool = (
 
             const [scaledX, scaledY] = scaledCoords[scaledCoordsIndex];
 
-            // Initialize sensor in the pool
             sensorPool.initializeSensor(
               sensorIndex,
               sensorId,

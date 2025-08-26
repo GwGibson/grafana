@@ -4,6 +4,7 @@ import { VIEWBOX_LAYOUT } from '../utils/layout';
 
 import { RenderProps } from './sharedTypes';
 
+// TODO: Can probably delete this. Canvas should be more than sufficient.
 // Helper to create shader programs (only created once)
 const createShaderProgram = (gl: WebGLRenderingContext, vsSource: string, fsSource: string) => {
     const vertexShader = gl.createShader(gl.VERTEX_SHADER);

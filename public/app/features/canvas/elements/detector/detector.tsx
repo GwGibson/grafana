@@ -77,11 +77,12 @@ const DetectorDisplay: React.FC<CanvasElementProps<DetectorConfig, DetectorData>
   const context = usePanelContext();
 
   // Initialize pools with matching capacity on first render
+  // TODO: Allow user to configure capacity via panel option? Or just set a high default?
+  // I think ~30,000 is the max should ask Zach :( (Darshan)
   useEffect(() => {
-    PoolFactory.initializePools(50000);
+    PoolFactory.initializePools(20000);
   }, []);
 
-  // Get singleton pool instances from factory
   const sensorPoolRef = useRef(PoolFactory.getSensorPool());
   const prevConfigRef = useRef<DetectorConfig>();
 
@@ -102,7 +103,7 @@ const DetectorDisplay: React.FC<CanvasElementProps<DetectorConfig, DetectorData>
     data,
     config,
     scene?.isPanelEditing || false,
-    sensorPoolRef.current // Pass the pool to the factory
+    sensorPoolRef.current
   );
 
   return config.displayMode === DisplayMode.RENDER ? (
@@ -157,7 +158,6 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
 
     const config = cfg.config;
 
-    // Extract measurements efficiently
     let measurementsView: Float32Array;
     if (config.measurements) {
       const scalarResult = ctx.getScalar(config.measurements);
@@ -197,8 +197,6 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
     // Update all data in place (no new allocations)
     dataPool.updateDisplayData(config.arrays || [], config.networks || []);
     dataPool.updateColorData(config.colorBar, validMin, validMax);
-
-    // Return the reused data object
     return dataPool.getDetectorData(config.displayMode, config.detectorType);
   },
 
@@ -213,7 +211,7 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
           options: [
             { label: 'Info', value: DisplayMode.DISPLAY },
             { label: 'Render', value: DisplayMode.RENDER },
-            // { label: 'Experimental', value: DisplayMode.FAST_RENDER },
+            // { label: 'Experimental', value: DisplayMode.FAST_RENDER }, // Does not seem necessary with new pool implementations
           ] as Array<SelectableValue<DisplayMode>>,
         },
         defaultValue: DisplayMode.DISPLAY,

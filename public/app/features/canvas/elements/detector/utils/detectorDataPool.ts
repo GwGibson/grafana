@@ -14,10 +14,7 @@ export class DetectorDataPool {
   private channelMapping: Int32Array;
   private channelMappingCount = 0;
 
-  // Maximum capacity
   private readonly maxCapacity: number;
-
-  // Reusable data structure
   private detectorData: DetectorData;
 
   // Display data arrays (reused, not recreated)
@@ -25,10 +22,8 @@ export class DetectorDataPool {
   private selectedNetworks: string[] = [];
 
   constructor(maxCapacity: number) {
-    // Use single capacity for all arrays to ensure consistency
+    // Using a single capacity for all arrays to ensure consistency
     this.maxCapacity = maxCapacity;
-
-    // Pre-allocate typed arrays with same capacity
     this.measurements = new Float32Array(maxCapacity);
     this.channelMapping = new Int32Array(maxCapacity);
 
@@ -39,7 +34,7 @@ export class DetectorDataPool {
     this.detectorData = {
       displayMode: DisplayMode.DISPLAY,
       detectorType: '',
-      measurements: new Float32Array(0), // Will be a view into measurements
+      measurements: new Float32Array(0),
       displayData: {
         selectedArrays: this.selectedArrays,
         selectedNetworks: this.selectedNetworks,
@@ -50,14 +45,11 @@ export class DetectorDataPool {
         maxMeasurement: 1,
       },
       mappingData: {
-        channelMapping: new Int32Array(0), // Will be a view into channelMapping
+        channelMapping: new Int32Array(0),
       },
     };
   }
 
-  /**
-   * Get the maximum capacity of this pool
-   */
   getMaxCapacity(): number {
     return this.maxCapacity;
   }
@@ -74,23 +66,17 @@ export class DetectorDataPool {
     }
 
     if (newMeasurements instanceof Float32Array) {
-      // Fast copy from typed array
       this.measurements.set(newMeasurements.subarray(0, count));
     } else {
-      // Copy from regular array
       for (let i = 0; i < count; i++) {
         this.measurements[i] = newMeasurements[i];
       }
     }
 
     this.measurementCount = count;
-    // Return a view (no allocation)
     return this.measurements.subarray(0, count);
   }
 
-  /**
-   * Update channel mapping without allocation
-   */
   updateChannelMapping(mapping: number[]): Int32Array {
     const count = Math.min(mapping.length, this.maxCapacity);
 
@@ -103,15 +89,10 @@ export class DetectorDataPool {
     }
 
     this.channelMappingCount = count;
-    // Return a view (no allocation)
     return this.channelMapping.subarray(0, count);
   }
 
-  /**
-   * Update display data in place
-   */
   updateDisplayData(arrays: string[], networks: string[]): DetectorDisplayData {
-    // Clear and reuse existing arrays
     this.selectedArrays.length = 0;
     this.selectedNetworks.length = 0;
 
@@ -122,14 +103,10 @@ export class DetectorDataPool {
     return this.detectorData.displayData;
   }
 
-  /**
-   * Update color data in place
-   */
   updateColorData(colorBar: ColorBar, min: number, max: number): DetectorColorData {
     this.detectorData.colorData.colorBar = colorBar;
     this.detectorData.colorData.minMeasurement = min;
     this.detectorData.colorData.maxMeasurement = max;
-
     return this.detectorData.colorData;
   }
 
@@ -142,7 +119,7 @@ export class DetectorDataPool {
     this.detectorData.displayMode = displayMode;
     this.detectorData.detectorType = detectorType;
 
-    // Update array views (no allocation, just changing references)
+    // Update array views (no allocation -> just changing references)
     this.detectorData.measurements = this.measurements.subarray(0, this.measurementCount);
     this.detectorData.mappingData.channelMapping = this.channelMapping.subarray(0, this.channelMappingCount);
 
@@ -150,7 +127,7 @@ export class DetectorDataPool {
   }
 
   /**
-   * Reset the pool (useful when switching detector types)
+   * Reset the pool. Useful when switching detector types.
    */
   reset(): void {
     this.measurementCount = 0;
@@ -162,9 +139,6 @@ export class DetectorDataPool {
   }
 }
 
-/**
- * Singleton instance manager for the pool
- */
 class DetectorDataPoolManager {
   private static instance: DetectorDataPool | null = null;
 
