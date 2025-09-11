@@ -1,18 +1,14 @@
 import { ColorBar } from '../colorbar/colorbar';
 import { DisplayMode, DetectorData, DetectorDisplayData, DetectorColorData } from '../detector';
+import { POOL_CONFIG } from '../utils/poolConfig';
 
 /**
  * Object pool for detector data to minimize garbage collection
- * Pre-allocates all data structures and reuses them across updates
+ * Uses dynamic buffer allocation based on actual network sizes
  */
 export class DetectorDataPool {
-  // Pre-allocated typed array for measurements
-  private measurements: Float32Array;
-  private measurementCount = 0;
-
-  // Pre-allocated channel mapping
-  private channelMapping: Int32Array;
-  private channelMappingCount = 0;
+  private networkMeasurements: Map<string, Float32Array>;
+  private networkBuffers: Map<string, Float32Array>;
 
   private readonly maxCapacity: number;
   private detectorData: DetectorData;
@@ -21,20 +17,22 @@ export class DetectorDataPool {
   private selectedArrays: string[] = [];
   private selectedNetworks: string[] = [];
 
-  constructor(maxCapacity: number) {
-    // Using a single capacity for all arrays to ensure consistency
-    this.maxCapacity = maxCapacity;
-    this.measurements = new Float32Array(maxCapacity);
-    this.channelMapping = new Int32Array(maxCapacity);
+  private conversionBuffer: Float32Array;
 
-    // Initialize with -1 (unmapped)
-    this.channelMapping.fill(-1);
+  constructor(maxCapacity: number) {
+    this.maxCapacity = maxCapacity;
+
+    this.networkMeasurements = new Map();
+    this.networkBuffers = new Map();
+
+    // Start with initial size, will grow if needed
+    this.conversionBuffer = new Float32Array(POOL_CONFIG.INITIAL_CONVERSION_BUFFER_SIZE);
 
     // Pre-allocate the main data structure once
     this.detectorData = {
       displayMode: DisplayMode.DISPLAY,
       detectorType: '',
-      measurements: new Float32Array(0),
+      networkMeasurements: this.networkMeasurements,
       displayData: {
         selectedArrays: this.selectedArrays,
         selectedNetworks: this.selectedNetworks,
@@ -44,9 +42,6 @@ export class DetectorDataPool {
         minMeasurement: -1,
         maxMeasurement: 1,
       },
-      mappingData: {
-        channelMapping: new Int32Array(0),
-      },
     };
   }
 
@@ -54,42 +49,86 @@ export class DetectorDataPool {
     return this.maxCapacity;
   }
 
-  /**
-   * Update measurements without allocation
-   * Returns a view of the measurements array
-   */
-  updateMeasurements(newMeasurements: number[] | Float32Array): Float32Array {
-    const count = Math.min(newMeasurements.length, this.maxCapacity);
-
-    if (newMeasurements.length > this.maxCapacity) {
-      console.warn(`DetectorDataPool: Truncating measurements from ${newMeasurements.length} to ${this.maxCapacity}`);
+  getFloat32Array(values: number[] | Float32Array): Float32Array {
+    if (values instanceof Float32Array) {
+      return values;
     }
 
-    if (newMeasurements instanceof Float32Array) {
-      this.measurements.set(newMeasurements.subarray(0, count));
-    } else {
-      for (let i = 0; i < count; i++) {
-        this.measurements[i] = newMeasurements[i];
-      }
+    const count = Math.min(values.length, this.maxCapacity);
+
+    if (values.length > this.maxCapacity) {
+      console.warn(`DetectorDataPool: Truncating values from ${values.length} to ${this.maxCapacity}`);
     }
 
-    this.measurementCount = count;
-    return this.measurements.subarray(0, count);
-  }
-
-  updateChannelMapping(mapping: number[]): Int32Array {
-    const count = Math.min(mapping.length, this.maxCapacity);
-
-    if (mapping.length > this.maxCapacity) {
-      console.warn(`DetectorDataPool: Truncating channel mapping from ${mapping.length} to ${this.maxCapacity}`);
+    // Grow conversion buffer if needed
+    if (count > this.conversionBuffer.length) {
+      this.conversionBuffer = new Float32Array(count);
     }
 
     for (let i = 0; i < count; i++) {
-      this.channelMapping[i] = mapping[i];
+      this.conversionBuffer[i] = values[i];
     }
 
-    this.channelMappingCount = count;
-    return this.channelMapping.subarray(0, count);
+    // Return a view of the actual used portion
+    return this.conversionBuffer.subarray(0, count);
+  }
+
+  updateNetworkMeasurements(measurements: Map<string, Float32Array>): void {
+    this.networkMeasurements.clear();
+
+    for (const [networkId, values] of measurements) {
+      const measurementCount = values.length;
+
+      // Check if this individual network would exceed capacity
+      if (measurementCount > this.maxCapacity) {
+        console.warn(
+          `DetectorDataPool: Network ${networkId} has ${measurementCount} measurements, ` +
+            `exceeding capacity (${this.maxCapacity}). Truncating.`
+        );
+      }
+
+      const actualCount = Math.min(measurementCount, this.maxCapacity);
+
+      // Get existing buffer or determine if we need a new one
+      let buffer = this.networkBuffers.get(networkId);
+
+      if (!buffer || buffer.length < actualCount) {
+        // Create new buffer sized exactly to what we need
+        buffer = new Float32Array(actualCount);
+        this.networkBuffers.set(networkId, buffer);
+      }
+
+      if (values.length <= actualCount) {
+        buffer.set(values);
+      } else {
+        buffer.set(values.subarray(0, actualCount));
+      }
+
+      // Store view of actual data
+      this.networkMeasurements.set(networkId, buffer.subarray(0, actualCount));
+    }
+
+    // Clean up unused buffers to free memory (not sure this is needed)
+    this.cleanupUnusedBuffers();
+  }
+
+  /**
+   * Remove buffers for networks that are no longer being used
+   */
+  private cleanupUnusedBuffers(): void {
+    // Keep buffers for a bit in case they're used again soon
+    // Only cleanup if we have significantly more buffers than active networks
+    if (this.networkBuffers.size > this.networkMeasurements.size * POOL_CONFIG.BUFFER_CLEANUP_THRESHOLD_MULTIPLIER) {
+      for (const [networkId] of this.networkBuffers) {
+        if (!this.networkMeasurements.has(networkId)) {
+          this.networkBuffers.delete(networkId);
+        }
+      }
+    }
+  }
+
+  getNetworkMeasurement(networkId: string): Float32Array | undefined {
+    return this.networkMeasurements.get(networkId);
   }
 
   updateDisplayData(arrays: string[], networks: string[]): DetectorDisplayData {
@@ -110,19 +149,11 @@ export class DetectorDataPool {
     return this.detectorData.colorData;
   }
 
-  /**
-   * Get the reusable detector data object
-   * This returns the same object reference every time (no allocation)
-   */
   getDetectorData(displayMode: DisplayMode, detectorType: string): DetectorData {
-    // Update values in place
     this.detectorData.displayMode = displayMode;
     this.detectorData.detectorType = detectorType;
 
-    // Update array views (no allocation -> just changing references)
-    this.detectorData.measurements = this.measurements.subarray(0, this.measurementCount);
-    this.detectorData.mappingData.channelMapping = this.channelMapping.subarray(0, this.channelMappingCount);
-
+    // networkMeasurements is already a reference to the internal map
     return this.detectorData;
   }
 
@@ -130,12 +161,12 @@ export class DetectorDataPool {
    * Reset the pool. Useful when switching detector types.
    */
   reset(): void {
-    this.measurementCount = 0;
-    this.channelMappingCount = 0;
-    this.measurements.fill(0);
-    this.channelMapping.fill(-1);
+    this.networkMeasurements.clear();
     this.selectedArrays.length = 0;
     this.selectedNetworks.length = 0;
+
+    // Don't clear buffers immediately -> they might be reused
+    // Let cleanupUnusedBuffers handle it gradually
   }
 }
 

@@ -66,7 +66,7 @@ export const getDetectorComponentData = (
     initializeSensorPool(data, DETECTOR_VIEWBOX_EXTENT, detectorConfig, sensorPool, displayMode);
 
     sensorPool.updateSensorMeasurements(
-      data.measurements,
+      data.networkMeasurements,
       data.colorData,
       displayMode,
       getSensorCount(data, detectorConfig)
@@ -81,7 +81,7 @@ export const getDetectorComponentData = (
     return newComponentData;
   } else {
     sensorPool.updateSensorMeasurements(
-      data.measurements,
+      data.networkMeasurements,
       data.colorData,
       displayMode,
       getSensorCount(
@@ -145,43 +145,47 @@ const initializeSensorPool = (
   sensorPool: SensorDataPool,
   displayMode: boolean
 ): void => {
-  const { channelMapping } = data.mappingData;
   const { selectedArrays, selectedNetworks } = data.displayData;
+
+  // Reset the sensor pool to clear any previous network mappings
+  sensorPool.reset();
 
   let sensorIndex = 0;
 
   detectorLayout.hexagons.forEach((hexagon) => {
     if (selectedArrays.includes(hexagon.name)) {
+      // Calculate all scaled coordinates for this hexagon
+      const allSensorPositions = hexagon.networks.flatMap((network) =>
+        network.sensors.map((sensor) => sensor.position)
+      );
+
       const scaledCoords = scaleCoordinates(
         detectorViewboxExtent,
         detectorLayout.layoutExtent,
-        hexagon.networks.flatMap((network) => network.sensors.map((sensor) => sensor.position)),
+        allSensorPositions,
         hexagon.extent,
         hexagon.center,
         hexagon.networkRotationAngle
       );
+
       const scaledSensorRadii = scaleRadius(hexagon.sensorRadii, hexagon.extent, detectorViewboxExtent);
 
-      hexagon.networks.forEach((network, networkIndex) => {
+      let globalCoordIndex = 0; // Tracks position in the full scaledCoords array
+
+      hexagon.networks.forEach((network) => {
+        const networkSensorCount = network.sensors.length;
+
         if (selectedNetworks.includes(network.name)) {
-          const sensorStartIndex = hexagon.networkStartIndices[networkIndex];
-
-          network.sensors.forEach((sensor, index) => {
-            const mappedSensorIndex = sensorStartIndex + index;
-            const mappedChannel =
-              channelMapping[mappedSensorIndex] !== undefined ? channelMapping[mappedSensorIndex] : -1;
-            const sensorId = `(${network.name}): ${index + 1}`;
-
-            const scaledCoordsIndex =
-              hexagon.networkStartIndices[0] === 0
-                ? mappedSensorIndex
-                : mappedSensorIndex % hexagon.networkStartIndices[0];
-
-            const [scaledX, scaledY] = scaledCoords[scaledCoordsIndex];
+          network.sensors.forEach((sensor, localIndex) => {
+            const sensorId = `(${network.name}): ${localIndex + 1}`;
+            const currentCoordIndex = globalCoordIndex + localIndex;
+            const [scaledX, scaledY] = scaledCoords[currentCoordIndex];
 
             sensorPool.initializeSensor(
               sensorIndex,
               sensorId,
+              network.name, // Use network name as network ID
+              localIndex, // Local index within the network
               scaledX,
               scaledY,
               sensor.position[0],
@@ -190,13 +194,15 @@ const initializeSensorPool = (
               sensor.sweepFlag,
               sensor.isDark,
               scaledSensorRadii,
-              mappedChannel,
               displayMode
             );
 
             sensorIndex++;
           });
         }
+
+        // Always increment by the full network size to maintain proper indexing
+        globalCoordIndex += networkSensorCount;
       });
     }
   });

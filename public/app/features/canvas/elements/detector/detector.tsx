@@ -23,8 +23,8 @@ import { DetectorArrayEditor, DetectorNetworkEditor } from './editors/ArrayNetwo
 import { MinMaxSelectionEditor } from './editors/MinMaxSelectionEditor';
 import { DetectorCanvas } from './renderers/canvas';
 import { DetectorSVG } from './renderers/svg';
-import { DetectorWebGLCanvas } from './renderers/webGL';
 import { VIEWBOX_LAYOUT } from './utils/layout';
+import { POOL_CONFIG } from './utils/poolConfig';
 import PoolFactory from './utils/poolFactory';
 
 export enum DisplayMode {
@@ -36,10 +36,9 @@ export enum DisplayMode {
 export interface DetectorData {
   displayMode: DisplayMode;
   detectorType: string;
-  measurements: Float32Array;
+  networkMeasurements: Map<string, Float32Array>;
   displayData: DetectorDisplayData;
   colorData: DetectorColorData;
-  mappingData: DetectorMappingData;
 }
 
 export interface DetectorDisplayData {
@@ -53,17 +52,12 @@ export interface DetectorColorData {
   maxMeasurement: number;
 }
 
-export interface DetectorMappingData {
-  channelMapping: Int32Array;
-}
-
 export interface DetectorConfig {
   measurements?: ScalarDimensionConfig;
   displayMode: DisplayMode;
   detectorType: string;
   arrays: string[];
   networks: string[];
-  channelMappingInput: string;
   colorBar: ColorBar;
   colorBarRange: {
     min: { value: number };
@@ -76,11 +70,8 @@ const DetectorDisplay: React.FC<CanvasElementProps<DetectorConfig, DetectorData>
   const { config, data } = props;
   const context = usePanelContext();
 
-  // Initialize pools with matching capacity on first render
-  // TODO: Allow user to configure capacity via panel option? Or just set a high default?
-  // I think ~30,000 is the max should ask Zach :( (Darshan)
   useEffect(() => {
-    PoolFactory.initializePools(20000);
+    PoolFactory.initializePools(POOL_CONFIG.MAX_SENSOR_CAPACITY);
   }, []);
 
   const sensorPoolRef = useRef(PoolFactory.getSensorPool());
@@ -108,8 +99,6 @@ const DetectorDisplay: React.FC<CanvasElementProps<DetectorConfig, DetectorData>
 
   return config.displayMode === DisplayMode.RENDER ? (
     <DetectorCanvas detectorComponentData={detectorComponentData} data={data} />
-  ) : config.displayMode === DisplayMode.FAST_RENDER ? (
-    <DetectorWebGLCanvas detectorComponentData={detectorComponentData} data={data} />
   ) : (
     <DetectorSVG detectorComponentData={detectorComponentData} data={data} />
   );
@@ -123,7 +112,7 @@ export const DEFAULT_DETECTOR_SETTINGS = {
 export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
   id: 'detector',
   name: 'Detector',
-  description: 'Detector element for historical live-viewing',
+  description: 'Detector element for live-viewing',
   display: DetectorDisplay,
   defaultSize: {
     width: VIEWBOX_LAYOUT.VIEWBOX.WIDTH,
@@ -137,8 +126,6 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
       detectorType: DEFAULT_DETECTOR_SETTINGS.TYPE,
       arrays: [],
       networks: [],
-      baseURL: '',
-      channelMappingInput: '',
       colorBar: DEFAULT_DETECTOR_SETTINGS.COLORBAR,
       colorBarRange: {
         min: { value: DEFAULT_MIN },
@@ -157,26 +144,41 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
     }
 
     const config = cfg.config;
+    let networkMeasurements = new Map<string, Float32Array>();
 
-    let measurementsView: Float32Array;
     if (config.measurements) {
       const scalarResult = ctx.getScalar(config.measurements);
       const rawValues = scalarResult.field?.values || [];
 
       if (rawValues.length > 0) {
-        if (Array.isArray(rawValues[0])) {
-          // Use the first (most recent) array of measurements
-          measurementsView = dataPool.updateMeasurements(rawValues[0]);
-        } else {
-          // Flat array of values
-          measurementsView = dataPool.updateMeasurements(rawValues);
+        const firstValue = rawValues[0];
+
+        if (typeof firstValue === 'object' && !Array.isArray(firstValue)) {
+          // Network-mapped format: { "NETWORK_ID": [values], ... }
+          for (const [networkId, values] of Object.entries(firstValue)) {
+            if (Array.isArray(values)) {
+              networkMeasurements.set(networkId, dataPool.getFloat32Array(values));
+            }
+          }
+        } else if (Array.isArray(firstValue)) {
+          // Flat array format -> distribute to selected networks (for testing)
+          // Create separate copy for each network to avoid shared references
+          for (const networkId of config.networks) {
+            const networkCopy = new Float32Array(firstValue);
+            networkMeasurements.set(networkId, networkCopy);
+          }
+        } else if (typeof firstValue === 'number') {
+          // Single flat array of numbers -> distribute to selected networks
+          // Create separate copy for each network
+          for (const networkId of config.networks) {
+            const networkCopy = new Float32Array(rawValues as number[]);
+            networkMeasurements.set(networkId, networkCopy);
+          }
         }
-      } else {
-        measurementsView = dataPool.updateMeasurements([]);
       }
-    } else {
-      measurementsView = dataPool.updateMeasurements([]);
     }
+
+    dataPool.updateNetworkMeasurements(networkMeasurements);
 
     // Validate and update color range
     const minMeasurement = config.colorBarRange.min.value;
@@ -185,14 +187,6 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
       minMeasurement < maxMeasurement
         ? { min: minMeasurement, max: maxMeasurement }
         : { min: DEFAULT_MIN, max: DEFAULT_MAX };
-
-    // Update channel mapping
-    if (!config.channelMappingInput?.trim()) {
-      const mappingPairs = Array.from({ length: measurementsView.length }, (_, i) => `${i + 1}:${i + 1}`);
-      config.channelMappingInput = mappingPairs.join(', ');
-    }
-    const channelMapping = parseChannelMapping(config.channelMappingInput);
-    dataPool.updateChannelMapping(channelMapping);
 
     // Update all data in place (no new allocations)
     dataPool.updateDisplayData(config.arrays || [], config.networks || []);
@@ -211,7 +205,6 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
           options: [
             { label: 'Info', value: DisplayMode.DISPLAY },
             { label: 'Render', value: DisplayMode.RENDER },
-            // { label: 'Experimental', value: DisplayMode.FAST_RENDER }, // Does not seem necessary with new pool implementations
           ] as Array<SelectableValue<DisplayMode>>,
         },
         defaultValue: DisplayMode.DISPLAY,
@@ -264,16 +257,6 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
         },
         editor: DetectorNetworkEditor,
         defaultValue: [],
-      })
-      .addTextInput({
-        category,
-        path: 'config.channelMappingInput',
-        name: 'Channel Mapping Input',
-        description: 'Input channel to sensor pairs in the form 1:1, 2:200, ...',
-        settings: {
-          id: 'channel-mapping-input',
-          label: 'Channel Mapping Input',
-        },
       })
       .addSelect({
         category,
@@ -331,40 +314,3 @@ export const getDetectorStaticStyles = () => (theme: GrafanaTheme2) => ({
     textShadow: `1px 1px 2px ${theme.colors.background.canvas}`,
   }),
 });
-
-const parseChannelMapping = (inputText: string): number[] => {
-  if (!inputText.trim().length) {
-    return [];
-  }
-
-  try {
-    const pairs = inputText.split(',').map((s) => s.trim());
-    const result: number[] = [];
-
-    for (const pair of pairs) {
-      const [channelStr, sensorStr] = pair.split(':').map((s) => s.trim());
-      const channel = parseInt(channelStr, 10);
-      const sensor = parseInt(sensorStr, 10);
-
-      if (isNaN(channel) || isNaN(sensor)) {
-        console.warn(`Invalid mapping pair: ${pair}. Skipping.`);
-        continue;
-      }
-
-      // Subtract 1 from sensor index to convert from 1-based to 0-based
-      const sensorIndex = sensor - 1;
-
-      // Make the array long enough to hold this index
-      if (sensorIndex >= result.length) {
-        result.length = sensorIndex + 1;
-      }
-
-      result[sensorIndex] = channel;
-    }
-
-    return result;
-  } catch (error) {
-    console.error('Error parsing channel mapping:', error);
-    return [];
-  }
-};

@@ -10,9 +10,9 @@ export class PoolFactory {
 
   /**
    * Initialize both pools with the same capacity
-   * This ensures measurements, channel mappings, and sensors all have matching limits
+   * This ensures measurements and sensors all have matching limits
    */
-  static initializePools(capacity = 20000): void {
+  static initializePools(capacity = this.capacity): void {
     if (this.isInitialized) {
       return;
     }
@@ -45,27 +45,6 @@ export class PoolFactory {
   static resetPools(): void {
     DetectorDataPoolManager.reset();
     SensorDataPoolManager.reset();
-  }
-
-  static wouldExceedCapacity(count: number): boolean {
-    return count > this.capacity;
-  }
-
-  /**
-   * Validate that measurement count, channel mapping count, and sensor count are consistent
-   */
-  static validateConsistency(measurementCount: number, channelMappingCount: number, sensorCount: number): boolean {
-    if (measurementCount !== channelMappingCount) {
-      return false;
-    }
-
-    // Sensor count might be different as it depends on selected networks/arrays
-    // but it shouldn't exceed the measurement count
-    if (sensorCount > measurementCount) {
-      return false;
-    }
-
-    return true;
   }
 }
 

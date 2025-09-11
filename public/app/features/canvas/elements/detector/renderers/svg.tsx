@@ -78,7 +78,7 @@ const Sensor: React.FC<{ configData: PooledSensorData }> = ({ configData }) => {
           className={styles.hoverText}
         >
           <tspan x={DETECTOR_VIEWBOX_EXTENT.width / 2} dy="0">
-            Channel: {configData.channel === -1 ? '(unmapped)' : configData.channel} | {configData.id}
+            Network: {configData.networkId} | Sensor: {configData.networkLocalIndex + 1} | {configData.id}
           </tspan>
           <tspan x={DETECTOR_VIEWBOX_EXTENT.width / 2} dy="1.2em">
             ({configData.unscaledPosition[0]}, {configData.unscaledPosition[1]}) → ({x.toFixed(2)}, {y.toFixed(2)})

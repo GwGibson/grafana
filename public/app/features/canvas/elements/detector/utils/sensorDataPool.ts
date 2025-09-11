@@ -1,9 +1,12 @@
 import { getColor } from '../colorbar/colorbar';
 import { DetectorColorData } from '../detector';
+import { SENSOR_STYLES, COLOR_THRESHOLDS, CACHE_LIMITS } from '../utils/renderingConfig';
 
 export interface PooledSensorData {
   // Static properties (set once)
   id: string;
+  networkId: string;
+  networkLocalIndex: number;
   scaledPosition: Float32Array; // [x, y] as typed array
   unscaledPosition: Float32Array; // [x, y] as typed array
   rotation: number;
@@ -12,27 +15,36 @@ export interface PooledSensorData {
   radius: number;
 
   // Dynamic properties (updated frequently)
-  channel: number;
   displayMode: boolean;
   isActive: boolean;
   fillColor: string;
   text: string;
   textFillColor: string;
+
+  // Cached values to avoid recalculation
+  cachedMeasurementValue: number;
+  cachedColorKey: number; // Hash of color parameters
 }
 
-/**
- * Pool for sensor data to minimize allocations during updates
- */
 export class SensorDataPool {
   private sensors: PooledSensorData[];
   private activeSensorCount = 0;
   private readonly maxCapacity: number;
 
-  // Pre-allocated string pool for common color values
-  private colorCache: Map<string, string> = new Map();
+  private sensorsByNetwork: Map<string, number[]> = new Map();
+
+  private colorCache: Map<number, string> = new Map();
+  private measurementTextCache = new Map<number, string>();
+
+  private tempColorArray: Float32Array;
+
+  private readonly NO_DATA_TEXT = SENSOR_STYLES.NO_DATA_TEXT;
+  private readonly INACTIVE_COLOR = SENSOR_STYLES.INACTIVE_COLOR;
+  private readonly ERROR_COLOR = SENSOR_STYLES.ERROR_COLOR;
 
   constructor(maxCapacity: number) {
     this.maxCapacity = maxCapacity;
+    this.tempColorArray = new Float32Array(1);
 
     // Pre-allocate all sensor objects
     this.sensors = new Array(maxCapacity);
@@ -40,22 +52,24 @@ export class SensorDataPool {
     for (let i = 0; i < maxCapacity; i++) {
       this.sensors[i] = {
         id: '',
+        networkId: '',
+        networkLocalIndex: 0,
         scaledPosition: new Float32Array(2),
         unscaledPosition: new Float32Array(2),
         rotation: 0,
         sweepFlag: 0,
         isDark: false,
         radius: 0,
-        channel: -1,
         displayMode: false,
         isActive: false,
-        fillColor: '',
-        text: '',
-        textFillColor: '',
+        fillColor: this.INACTIVE_COLOR,
+        text: this.NO_DATA_TEXT,
+        textFillColor: this.ERROR_COLOR,
+        cachedMeasurementValue: NaN,
+        cachedColorKey: 0,
       };
     }
   }
-
 
   getMaxCapacity(): number {
     return this.maxCapacity;
@@ -67,6 +81,8 @@ export class SensorDataPool {
   initializeSensor(
     index: number,
     id: string,
+    networkId: string,
+    networkLocalIndex: number,
     scaledX: number,
     scaledY: number,
     unscaledX: number,
@@ -75,7 +91,6 @@ export class SensorDataPool {
     sweepFlag: number,
     isDark: boolean,
     radius: number,
-    channel: number,
     displayMode: boolean
   ): void {
     if (index >= this.sensors.length) {
@@ -85,6 +100,8 @@ export class SensorDataPool {
 
     const sensor = this.sensors[index];
     sensor.id = id;
+    sensor.networkId = networkId;
+    sensor.networkLocalIndex = networkLocalIndex;
     sensor.scaledPosition[0] = scaledX;
     sensor.scaledPosition[1] = scaledY;
     sensor.unscaledPosition[0] = unscaledX;
@@ -93,22 +110,38 @@ export class SensorDataPool {
     sensor.sweepFlag = sweepFlag;
     sensor.isDark = isDark;
     sensor.radius = radius;
-    sensor.channel = channel;
     sensor.displayMode = displayMode;
+
+    // Track sensor by network
+    if (!this.sensorsByNetwork.has(networkId)) {
+      this.sensorsByNetwork.set(networkId, []);
+    }
+    this.sensorsByNetwork.get(networkId)!.push(index);
   }
 
   /**
-   * Batch update sensor measurements (called frequently)
-   * Optimized to minimize string allocations
+   * Fast hash function for color cache key
+   */
+  private hashColorParams(value: number, colorBar: string, min: number, max: number, percentage: number): number {
+    // Simple hash combining all parameters
+    const hash =
+      ((value * 1000) | 0) * 31 +
+      colorBar.charCodeAt(0) * 17 +
+      ((min * 100) | 0) * 13 +
+      ((max * 100) | 0) * 7 +
+      ((percentage * 100) | 0);
+    return hash;
+  }
+
+  /**
+   * Batch update sensor measurements with network-based data
    */
   updateSensorMeasurements(
-    measurements: Float32Array,
+    networkMeasurements: Map<string, Float32Array>,
     colorData: DetectorColorData,
     displayMode: boolean,
     sensorCount: number
   ): void {
-    const TEXT_OUT_OF_RANGE_PERCENTAGE = 0.2;
-    const FILL_OUT_OF_RANGE_PERCENTAGE = 0.2;
     const { colorBar, minMeasurement, maxMeasurement } = colorData;
 
     const effectiveSensorCount = Math.min(sensorCount, this.maxCapacity);
@@ -117,59 +150,100 @@ export class SensorDataPool {
       console.warn(`SensorDataPool: Truncating sensors from ${sensorCount} to ${this.maxCapacity}`);
     }
 
-    for (let i = 0; i < effectiveSensorCount; i++) {
-      const sensor = this.sensors[i];
+    // Update sensors by network
+    for (const [networkId, sensorIndices] of this.sensorsByNetwork) {
+      const measurements = networkMeasurements.get(networkId);
 
-      // Sensor channels are 1-based but measurements 0-based
-      const measurementIndex = sensor.channel - 1;
-      const isActive = measurementIndex >= 0 && measurementIndex < measurements.length;
+      for (const sensorIdx of sensorIndices) {
+        if (sensorIdx >= effectiveSensorCount) {
+          continue;
+        }
 
-      sensor.isActive = isActive;
+        const sensor = this.sensors[sensorIdx];
+        const localIdx = sensor.networkLocalIndex;
 
-      const colorKey = `${measurementIndex}_${colorBar}_${minMeasurement}_${maxMeasurement}_${TEXT_OUT_OF_RANGE_PERCENTAGE}`;
-      let fillColor = this.colorCache.get(colorKey);
+        // Check if we have measurements for this network and sensor
+        const isActive = measurements !== undefined && localIdx < measurements.length;
+        sensor.isActive = isActive;
 
-      if (!fillColor) {
-        fillColor = getColor(
-          measurements,
-          measurementIndex,
-          colorBar,
-          minMeasurement,
-          maxMeasurement,
-          TEXT_OUT_OF_RANGE_PERCENTAGE
-        );
-        // Cache the color string
-        this.colorCache.set(colorKey, fillColor);
-      }
+        if (isActive && measurements) {
+          const value = measurements[localIdx];
 
-      sensor.fillColor = fillColor;
+          // Only recalculate color if value or parameters changed
+          const colorHash = this.hashColorParams(
+            value,
+            colorBar,
+            minMeasurement,
+            maxMeasurement,
+            COLOR_THRESHOLDS.TEXT_OUT_OF_RANGE
+          );
 
-      // Only update text properties in display mode
-      if (displayMode) {
-        if (isActive) {
-          // Format measurement text (reuse string when possible)
-          const value = measurements[measurementIndex];
-          sensor.text = this.formatMeasurement(value);
+          if (sensor.cachedMeasurementValue !== value || sensor.cachedColorKey !== colorHash) {
+            sensor.cachedMeasurementValue = value;
+            sensor.cachedColorKey = colorHash;
 
-          const textColorKey = `${measurementIndex}_${colorBar}_${minMeasurement}_${maxMeasurement}_${FILL_OUT_OF_RANGE_PERCENTAGE}`;
-          let textFillColor = this.colorCache.get(textColorKey);
+            let fillColor = this.colorCache.get(colorHash);
+            if (!fillColor) {
+              // Use pre-allocated temp array
+              this.tempColorArray[0] = value;
+              fillColor = getColor(
+                this.tempColorArray,
+                0,
+                colorBar,
+                minMeasurement,
+                maxMeasurement,
+                COLOR_THRESHOLDS.TEXT_OUT_OF_RANGE
+              );
+              if (this.colorCache.size < CACHE_LIMITS.COLOR_CACHE_MAX) {
+                this.colorCache.set(colorHash, fillColor);
+              }
+            }
+            sensor.fillColor = fillColor;
+          }
 
-          if (!textFillColor) {
-            textFillColor = getColor(
-              measurements,
-              measurementIndex,
+          // Only update text properties in display mode
+          if (displayMode) {
+            sensor.text = this.formatMeasurement(value);
+
+            // Text color usually same as fill for active sensors
+            const textColorHash = this.hashColorParams(
+              value,
               colorBar,
               minMeasurement,
               maxMeasurement,
-              FILL_OUT_OF_RANGE_PERCENTAGE
+              COLOR_THRESHOLDS.FILL_OUT_OF_RANGE
             );
-            this.colorCache.set(textColorKey, textFillColor);
+            if (textColorHash === colorHash) {
+              sensor.textFillColor = sensor.fillColor;
+            } else {
+              let textFillColor = this.colorCache.get(textColorHash);
+              if (!textFillColor) {
+                this.tempColorArray[0] = value;
+                textFillColor = getColor(
+                  this.tempColorArray,
+                  0,
+                  colorBar,
+                  minMeasurement,
+                  maxMeasurement,
+                  COLOR_THRESHOLDS.FILL_OUT_OF_RANGE
+                );
+                if (this.colorCache.size < CACHE_LIMITS.COLOR_CACHE_MAX) {
+                  this.colorCache.set(textColorHash, textFillColor);
+                }
+              }
+              sensor.textFillColor = textFillColor;
+            }
           }
-
-          sensor.textFillColor = textFillColor;
         } else {
-          sensor.text = 'Inactive';
-          sensor.textFillColor = 'red';
+          // Use pre-allocated strings for inactive state
+          sensor.fillColor = this.INACTIVE_COLOR;
+          sensor.cachedMeasurementValue = NaN;
+          sensor.cachedColorKey = 0;
+
+          if (displayMode) {
+            sensor.text = this.NO_DATA_TEXT;
+            sensor.textFillColor = this.ERROR_COLOR;
+          }
         }
       }
     }
@@ -177,7 +251,6 @@ export class SensorDataPool {
     this.activeSensorCount = effectiveSensorCount;
   }
 
-  private measurementTextCache = new Map<number, string>();
   private formatMeasurement(value: number): string {
     const rounded = Math.round(value * 100) / 100;
 
@@ -185,7 +258,7 @@ export class SensorDataPool {
     if (!text) {
       text = rounded.toFixed(2);
       // Only cache if cache isn't too large
-      if (this.measurementTextCache.size < 1000) {
+      if (this.measurementTextCache.size < CACHE_LIMITS.MEASUREMENT_TEXT_CACHE_MAX) {
         this.measurementTextCache.set(rounded, text);
       }
     }
@@ -194,7 +267,6 @@ export class SensorDataPool {
   }
 
   getActiveSensors(): PooledSensorData[] {
-    // Return a view of the array (no new allocation)
     return this.sensors.slice(0, this.activeSensorCount);
   }
 
@@ -205,17 +277,23 @@ export class SensorDataPool {
     return null;
   }
 
-  /**
-   * Clear color cache (called when color scheme changes)
-   */
+  getSensorsByNetwork(): Map<string, number[]> {
+    return this.sensorsByNetwork;
+  }
+
   clearColorCache(): void {
     this.colorCache.clear();
+    // Also clear measurement cache as formats might change
+    if (this.measurementTextCache.size > CACHE_LIMITS.MEASUREMENT_TEXT_CACHE_MAX) {
+      this.measurementTextCache.clear();
+    }
   }
 
   reset(): void {
     this.activeSensorCount = 0;
     this.colorCache.clear();
     this.measurementTextCache.clear();
+    this.sensorsByNetwork.clear();
   }
 }
 
