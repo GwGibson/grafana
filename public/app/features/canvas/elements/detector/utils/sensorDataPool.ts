@@ -23,7 +23,7 @@ export interface PooledSensorData {
 
   // Cached values to avoid recalculation
   cachedMeasurementValue: number;
-  cachedColorKey: number; // Hash of color parameters
+  cachedColorKey: number;
 }
 
 export class SensorDataPool {
@@ -119,11 +119,7 @@ export class SensorDataPool {
     this.sensorsByNetwork.get(networkId)!.push(index);
   }
 
-  /**
-   * Fast hash function for color cache key
-   */
   private hashColorParams(value: number, colorBar: string, min: number, max: number, percentage: number): number {
-    // Simple hash combining all parameters
     const hash =
       ((value * 1000) | 0) * 31 +
       colorBar.charCodeAt(0) * 17 +
@@ -133,9 +129,6 @@ export class SensorDataPool {
     return hash;
   }
 
-  /**
-   * Batch update sensor measurements with network-based data
-   */
   updateSensorMeasurements(
     networkMeasurements: Map<string, Float32Array>,
     colorData: DetectorColorData,
@@ -150,7 +143,6 @@ export class SensorDataPool {
       console.warn(`SensorDataPool: Truncating sensors from ${sensorCount} to ${this.maxCapacity}`);
     }
 
-    // Update sensors by network
     for (const [networkId, sensorIndices] of this.sensorsByNetwork) {
       const measurements = networkMeasurements.get(networkId);
 
@@ -163,79 +155,96 @@ export class SensorDataPool {
         const localIdx = sensor.networkLocalIndex;
 
         // Check if we have measurements for this network and sensor
-        const isActive = measurements !== undefined && localIdx < measurements.length;
-        sensor.isActive = isActive;
+        const hasNetwork = measurements !== undefined && localIdx < measurements.length;
 
-        if (isActive && measurements) {
+        if (hasNetwork && measurements) {
           const value = measurements[localIdx];
 
-          // Only recalculate color if value or parameters changed
-          const colorHash = this.hashColorParams(
-            value,
-            colorBar,
-            minMeasurement,
-            maxMeasurement,
-            COLOR_THRESHOLDS.TEXT_OUT_OF_RANGE
-          );
+          // Check if the value is valid
+          if (!isFinite(value)) {
+            // Treat invalid/missing data as inactive
+            sensor.isActive = false;
+            sensor.fillColor = this.INACTIVE_COLOR;
+            sensor.cachedMeasurementValue = NaN;
+            sensor.cachedColorKey = 0;
 
-          if (sensor.cachedMeasurementValue !== value || sensor.cachedColorKey !== colorHash) {
-            sensor.cachedMeasurementValue = value;
-            sensor.cachedColorKey = colorHash;
-
-            let fillColor = this.colorCache.get(colorHash);
-            if (!fillColor) {
-              // Use pre-allocated temp array
-              this.tempColorArray[0] = value;
-              fillColor = getColor(
-                this.tempColorArray,
-                0,
-                colorBar,
-                minMeasurement,
-                maxMeasurement,
-                COLOR_THRESHOLDS.TEXT_OUT_OF_RANGE
-              );
-              if (this.colorCache.size < CACHE_LIMITS.COLOR_CACHE_MAX) {
-                this.colorCache.set(colorHash, fillColor);
-              }
+            if (displayMode) {
+              sensor.text = this.NO_DATA_TEXT;
+              sensor.textFillColor = this.ERROR_COLOR;
             }
-            sensor.fillColor = fillColor;
-          }
+          } else {
+            // Valid numeric measurement
+            sensor.isActive = true;
 
-          // Only update text properties in display mode
-          if (displayMode) {
-            sensor.text = this.formatMeasurement(value);
-
-            // Text color usually same as fill for active sensors
-            const textColorHash = this.hashColorParams(
+            // Only recalculate color if value or parameters changed
+            const colorHash = this.hashColorParams(
               value,
               colorBar,
               minMeasurement,
               maxMeasurement,
-              COLOR_THRESHOLDS.FILL_OUT_OF_RANGE
+              COLOR_THRESHOLDS.TEXT_OUT_OF_RANGE
             );
-            if (textColorHash === colorHash) {
-              sensor.textFillColor = sensor.fillColor;
-            } else {
-              let textFillColor = this.colorCache.get(textColorHash);
-              if (!textFillColor) {
+
+            if (sensor.cachedMeasurementValue !== value || sensor.cachedColorKey !== colorHash) {
+              sensor.cachedMeasurementValue = value;
+              sensor.cachedColorKey = colorHash;
+
+              let fillColor = this.colorCache.get(colorHash);
+              if (!fillColor) {
+                // Use pre-allocated temp array
                 this.tempColorArray[0] = value;
-                textFillColor = getColor(
+                fillColor = getColor(
                   this.tempColorArray,
                   0,
                   colorBar,
                   minMeasurement,
                   maxMeasurement,
-                  COLOR_THRESHOLDS.FILL_OUT_OF_RANGE
+                  COLOR_THRESHOLDS.TEXT_OUT_OF_RANGE
                 );
                 if (this.colorCache.size < CACHE_LIMITS.COLOR_CACHE_MAX) {
-                  this.colorCache.set(textColorHash, textFillColor);
+                  this.colorCache.set(colorHash, fillColor);
                 }
               }
-              sensor.textFillColor = textFillColor;
+              sensor.fillColor = fillColor;
+            }
+
+            // Only update text properties in display mode
+            if (displayMode) {
+              sensor.text = this.formatMeasurement(value);
+
+              // Text color is the same as fill for active sensors
+              const textColorHash = this.hashColorParams(
+                value,
+                colorBar,
+                minMeasurement,
+                maxMeasurement,
+                COLOR_THRESHOLDS.FILL_OUT_OF_RANGE
+              );
+              if (textColorHash === colorHash) {
+                sensor.textFillColor = sensor.fillColor;
+              } else {
+                let textFillColor = this.colorCache.get(textColorHash);
+                if (!textFillColor) {
+                  this.tempColorArray[0] = value;
+                  textFillColor = getColor(
+                    this.tempColorArray,
+                    0,
+                    colorBar,
+                    minMeasurement,
+                    maxMeasurement,
+                    COLOR_THRESHOLDS.FILL_OUT_OF_RANGE
+                  );
+                  if (this.colorCache.size < CACHE_LIMITS.COLOR_CACHE_MAX) {
+                    this.colorCache.set(textColorHash, textFillColor);
+                  }
+                }
+                sensor.textFillColor = textFillColor;
+              }
             }
           }
         } else {
-          // Use pre-allocated strings for inactive state
+          // No measurements for this network/sensor
+          sensor.isActive = false;
           sensor.fillColor = this.INACTIVE_COLOR;
           sensor.cachedMeasurementValue = NaN;
           sensor.cachedColorKey = 0;

@@ -19,8 +19,8 @@ import {
 } from './colorbar/colorbar';
 import { detectorOptions, getDefaultDetectorType } from './detectors/data/componentMap';
 import { getDetectorComponentData, DetectorComponentData } from './detectors/detectorFactory';
-import { DetectorArrayEditor, DetectorNetworkEditor } from './editors/ArrayNetworkSelectionEditor';
 import { MinMaxSelectionEditor } from './editors/MinMaxSelectionEditor';
+import { NetworkArrayEditor } from './editors/NetworkArrayEditor';
 import { DetectorCanvas } from './renderers/canvas';
 import { DetectorSVG } from './renderers/svg';
 import { VIEWBOX_LAYOUT } from './utils/layout';
@@ -56,8 +56,7 @@ export interface DetectorConfig {
   measurements?: ScalarDimensionConfig;
   displayMode: DisplayMode;
   detectorType: string;
-  arrays: string[];
-  networks: string[];
+  networksByArray: { [arrayName: string]: string[] };
   colorBar: ColorBar;
   colorBarRange: {
     min: { value: number };
@@ -124,8 +123,7 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
     config: {
       displayMode: DisplayMode.DISPLAY,
       detectorType: DEFAULT_DETECTOR_SETTINGS.TYPE,
-      arrays: [],
-      networks: [],
+      networksByArray: {},
       colorBar: DEFAULT_DETECTOR_SETTINGS.COLORBAR,
       colorBarRange: {
         min: { value: DEFAULT_MIN },
@@ -144,6 +142,18 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
     }
 
     const config = cfg.config;
+
+    // Derive arrays and create composite network IDs
+    const selectedArrays = Object.keys(config.networksByArray || {});
+    const selectedNetworks: string[] = [];
+
+    // Create composite network IDs
+    for (const [arrayName, networks] of Object.entries(config.networksByArray || {})) {
+      for (const network of networks) {
+        selectedNetworks.push(`${arrayName}:${network}`);
+      }
+    }
+
     let networkMeasurements = new Map<string, Float32Array>();
 
     if (config.measurements) {
@@ -154,23 +164,26 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
         const firstValue = rawValues[0];
 
         if (typeof firstValue === 'object' && !Array.isArray(firstValue)) {
-          // Network-mapped format: { "NETWORK_ID": [values], ... }
-          for (const [networkId, values] of Object.entries(firstValue)) {
-            if (Array.isArray(values)) {
-              networkMeasurements.set(networkId, dataPool.getFloat32Array(values));
+          // Network-mapped format -> need to map to composite IDs
+          for (const [arrayName, networks] of Object.entries(config.networksByArray || {})) {
+            for (const network of networks) {
+              const compositeId = `${arrayName}:${network}`;
+              // Try both composite ID and simple network ID for compatibility
+              const values = (firstValue as any)[compositeId] || (firstValue as any)[network];
+              if (Array.isArray(values)) {
+                networkMeasurements.set(compositeId, dataPool.getFloat32Array(values));
+              }
             }
           }
         } else if (Array.isArray(firstValue)) {
           // Flat array format -> distribute to selected networks (for testing)
-          // Create separate copy for each network to avoid shared references
-          for (const networkId of config.networks) {
+          for (const networkId of selectedNetworks) {
             const networkCopy = new Float32Array(firstValue);
             networkMeasurements.set(networkId, networkCopy);
           }
         } else if (typeof firstValue === 'number') {
           // Single flat array of numbers -> distribute to selected networks
-          // Create separate copy for each network
-          for (const networkId of config.networks) {
+          for (const networkId of selectedNetworks) {
             const networkCopy = new Float32Array(rawValues as number[]);
             networkMeasurements.set(networkId, networkCopy);
           }
@@ -188,8 +201,8 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
         ? { min: minMeasurement, max: maxMeasurement }
         : { min: DEFAULT_MIN, max: DEFAULT_MAX };
 
-    // Update all data in place (no new allocations)
-    dataPool.updateDisplayData(config.arrays || [], config.networks || []);
+    // Update all data in place
+    dataPool.updateDisplayData(selectedArrays, selectedNetworks);
     dataPool.updateColorData(config.colorBar, validMin, validMax);
     return dataPool.getDetectorData(config.displayMode, config.detectorType);
   },
@@ -234,29 +247,12 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
       })
       .addCustomEditor({
         category,
-        id: 'arrays',
-        path: 'config.arrays',
-        name: 'Sensor Arrays',
-        description: 'Select sensor arrays to display',
-        settings: {
-          id: 'sensor-array-select',
-          label: 'Sensor Array Selector',
-        },
-        editor: DetectorArrayEditor,
-        defaultValue: [],
-      })
-      .addCustomEditor({
-        category,
-        id: 'networks',
-        path: 'config.networks',
-        name: 'Networks',
-        description: 'Select networks to display',
-        settings: {
-          id: 'network-select',
-          label: 'Network Selector',
-        },
-        editor: DetectorNetworkEditor,
-        defaultValue: [],
+        id: 'networksByArray',
+        path: 'config.networksByArray',
+        name: 'Network Selection',
+        description: 'Select networks for each array',
+        editor: NetworkArrayEditor,
+        defaultValue: {},
       })
       .addSelect({
         category,

@@ -49,7 +49,7 @@ export class DetectorDataPool {
     return this.maxCapacity;
   }
 
-  getFloat32Array(values: number[] | Float32Array): Float32Array {
+  getFloat32Array(values: any[] | Float32Array): Float32Array {
     if (values instanceof Float32Array) {
       return values;
     }
@@ -66,7 +66,18 @@ export class DetectorDataPool {
     }
 
     for (let i = 0; i < count; i++) {
-      this.conversionBuffer[i] = values[i];
+      const val = values[i];
+
+      // Handle various invalid cases
+      if (val === 'N/A' || val === null || val === undefined || val === '') {
+        this.conversionBuffer[i] = NaN;
+      } else if (typeof val === 'number') {
+        this.conversionBuffer[i] = val;
+      } else {
+        // Try to convert string to number, fallback to NaN
+        const parsed = parseFloat(val);
+        this.conversionBuffer[i] = isNaN(parsed) ? NaN : parsed;
+      }
     }
 
     // Return a view of the actual used portion
@@ -79,7 +90,6 @@ export class DetectorDataPool {
     for (const [networkId, values] of measurements) {
       const measurementCount = values.length;
 
-      // Check if this individual network would exceed capacity
       if (measurementCount > this.maxCapacity) {
         console.warn(
           `DetectorDataPool: Network ${networkId} has ${measurementCount} measurements, ` +

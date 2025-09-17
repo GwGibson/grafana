@@ -50,7 +50,6 @@ const Sensor: React.FC<{ configData: PooledSensorData }> = ({ configData }) => {
     setIsHovered(false);
   };
 
-  // Access coordinates from Float32Array
   const x = configData.scaledPosition[0];
   const y = configData.scaledPosition[1];
   const radius = configData.radius;
@@ -78,7 +77,8 @@ const Sensor: React.FC<{ configData: PooledSensorData }> = ({ configData }) => {
           className={styles.hoverText}
         >
           <tspan x={DETECTOR_VIEWBOX_EXTENT.width / 2} dy="0">
-            Network: {configData.networkId} | Sensor: {configData.networkLocalIndex + 1} | {configData.id}
+            Network: {configData.networkId.split(':')[1] || configData.networkId} | Sensor:{' '}
+            {configData.networkLocalIndex + 1} | Array: {configData.networkId.split(':')[0]}
           </tspan>
           <tspan x={DETECTOR_VIEWBOX_EXTENT.width / 2} dy="1.2em">
             ({configData.unscaledPosition[0]}, {configData.unscaledPosition[1]}) → ({x.toFixed(2)}, {y.toFixed(2)})

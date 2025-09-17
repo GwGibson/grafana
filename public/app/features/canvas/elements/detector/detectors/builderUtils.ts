@@ -28,15 +28,5 @@ interface SensorInfo {
 }
 
 export const createHexagon = (hexagonInfo: HexagonInfo): HexagonInfo => {
-  const updatedNetworks = hexagonInfo.networks.map((network) => ({
-    ...network,
-    name: `${hexagonInfo.name} ${network.name}`, // Bug waiting to happen here
-  }));
-
-  const updatedHexagonInfo = {
-    ...hexagonInfo,
-    networks: updatedNetworks,
-  };
-
-  return updatedHexagonInfo;
+  return hexagonInfo;
 };

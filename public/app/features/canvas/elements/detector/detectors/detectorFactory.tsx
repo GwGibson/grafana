@@ -124,18 +124,19 @@ const generateDetectorLayout = (
 const getSensorCount = (data: DetectorData, detectorLayout: DetectorLayout): number => {
   const { selectedArrays, selectedNetworks } = data.displayData;
 
-  return detectorLayout.hexagons.reduce(
-    (total, hexagon) =>
-      selectedArrays.includes(hexagon.name)
-        ? total +
-          hexagon.networks.reduce(
-            (netTotal, network) =>
-              selectedNetworks.includes(network.name) ? netTotal + network.sensors.length : netTotal,
-            0
-          )
-        : total,
-    0
-  );
+  return detectorLayout.hexagons.reduce((total, hexagon) => {
+    if (selectedArrays.includes(hexagon.name)) {
+      // Count sensors for networks that are selected for THIS specific array
+      return (
+        total +
+        hexagon.networks.reduce((netTotal, network) => {
+          const compositeNetworkId = `${hexagon.name}:${network.name}`;
+          return selectedNetworks.includes(compositeNetworkId) ? netTotal + network.sensors.length : netTotal;
+        }, 0)
+      );
+    }
+    return total;
+  }, 0);
 };
 
 const initializeSensorPool = (
@@ -174,18 +175,20 @@ const initializeSensorPool = (
 
       hexagon.networks.forEach((network) => {
         const networkSensorCount = network.sensors.length;
+        const compositeNetworkId = `${hexagon.name}:${network.name}`;
 
-        if (selectedNetworks.includes(network.name)) {
+        // Only process if this specific array-network combination is selected
+        if (selectedNetworks.includes(compositeNetworkId)) {
           network.sensors.forEach((sensor, localIndex) => {
-            const sensorId = `(${network.name}): ${localIndex + 1}`;
+            const sensorId = `Network ${network.name}: ${localIndex + 1}`;
             const currentCoordIndex = globalCoordIndex + localIndex;
             const [scaledX, scaledY] = scaledCoords[currentCoordIndex];
 
             sensorPool.initializeSensor(
               sensorIndex,
               sensorId,
-              network.name, // Use network name as network ID
-              localIndex, // Local index within the network
+              compositeNetworkId,
+              localIndex,
               scaledX,
               scaledY,
               sensor.position[0],
@@ -201,7 +204,6 @@ const initializeSensorPool = (
           });
         }
 
-        // Always increment by the full network size to maintain proper indexing
         globalCoordIndex += networkSensorCount;
       });
     }
