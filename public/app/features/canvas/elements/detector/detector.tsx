@@ -62,6 +62,7 @@ export interface DetectorConfig {
     min: { value: number };
     max: { value: number };
   };
+  flatArrayMode?: boolean;
   DetectorComponentData?: DetectorComponentData;
 }
 
@@ -129,6 +130,7 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
         min: { value: DEFAULT_MIN },
         max: { value: DEFAULT_MAX },
       },
+      flatArrayMode: false, // Default to network-mapped mode
       inEditMode: true,
     },
   }),
@@ -161,31 +163,47 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
       const rawValues = scalarResult.field?.values || [];
 
       if (rawValues.length > 0) {
-        const firstValue = rawValues[0];
+        const displayValue = rawValues[rawValues.length - 1];
+        const useFlatArrayMode = config.flatArrayMode === true;
 
-        if (typeof firstValue === 'object' && !Array.isArray(firstValue)) {
-          // Network-mapped format -> need to map to composite IDs
-          for (const [arrayName, networks] of Object.entries(config.networksByArray || {})) {
-            for (const network of networks) {
-              const compositeId = `${arrayName}:${network}`;
-              // Try both composite ID and simple network ID for compatibility
-              const values = (firstValue as any)[compositeId] || (firstValue as any)[network];
-              if (Array.isArray(values)) {
-                networkMeasurements.set(compositeId, dataPool.getFloat32Array(values));
+        // Flat array mode is primarily for testing purposes
+        if (useFlatArrayMode) {
+          // Flat array mode: distribute single array to all selected networks
+          if (Array.isArray(displayValue)) {
+            // Direct array of values
+            for (const networkId of selectedNetworks) {
+              const networkCopy = dataPool.getFloat32Array(displayValue);
+              networkMeasurements.set(networkId, networkCopy);
+            }
+          } else if (typeof displayValue === 'object' && displayValue !== null) {
+            // Could be an object with a single array property
+            const values = Object.values(displayValue)[0];
+            if (Array.isArray(values)) {
+              for (const networkId of selectedNetworks) {
+                const networkCopy = dataPool.getFloat32Array(values);
+                networkMeasurements.set(networkId, networkCopy);
               }
             }
+          } else if (typeof displayValue === 'number') {
+            // Single flat array of numbers from multiple time points
+            for (const networkId of selectedNetworks) {
+              const networkCopy = new Float32Array(rawValues as number[]);
+              networkMeasurements.set(networkId, networkCopy);
+            }
           }
-        } else if (Array.isArray(firstValue)) {
-          // Flat array format -> distribute to selected networks (for testing)
-          for (const networkId of selectedNetworks) {
-            const networkCopy = new Float32Array(firstValue);
-            networkMeasurements.set(networkId, networkCopy);
-          }
-        } else if (typeof firstValue === 'number') {
-          // Single flat array of numbers -> distribute to selected networks
-          for (const networkId of selectedNetworks) {
-            const networkCopy = new Float32Array(rawValues as number[]);
-            networkMeasurements.set(networkId, networkCopy);
+        } else {
+          // Network-mapped mode: expect object with network IDs as keys ()
+          if (typeof displayValue === 'object' && !Array.isArray(displayValue) && displayValue !== null) {
+            for (const [arrayName, networks] of Object.entries(config.networksByArray || {})) {
+              for (const network of networks) {
+                const compositeId = `${arrayName}:${network}`;
+                // Try both composite ID and simple network ID for compatibility
+                const values = (displayValue as any)[compositeId] || (displayValue as any)[network];
+                if (Array.isArray(values)) {
+                  networkMeasurements.set(compositeId, dataPool.getFloat32Array(values));
+                }
+              }
+            }
           }
         }
       }
@@ -193,7 +211,6 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
 
     dataPool.updateNetworkMeasurements(networkMeasurements);
 
-    // Validate and update color range
     const minMeasurement = config.colorBarRange.min.value;
     const maxMeasurement = config.colorBarRange.max.value;
     const { min: validMin, max: validMax } =
@@ -201,7 +218,6 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
         ? { min: minMeasurement, max: maxMeasurement }
         : { min: DEFAULT_MIN, max: DEFAULT_MAX };
 
-    // Update all data in place
     dataPool.updateDisplayData(selectedArrays, selectedNetworks);
     dataPool.updateColorData(config.colorBar, validMin, validMax);
     return dataPool.getDetectorData(config.displayMode, config.detectorType);
@@ -253,6 +269,13 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
         description: 'Select networks for each array',
         editor: NetworkArrayEditor,
         defaultValue: {},
+      })
+      .addBooleanSwitch({
+        category,
+        path: 'config.flatArrayMode',
+        name: 'Flat Array Mode',
+        description: 'Enable this for test data that uses a single array distributed to all networks',
+        defaultValue: false,
       })
       .addSelect({
         category,
