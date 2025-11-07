@@ -19,6 +19,7 @@ import {
 } from './colorbar/colorbar';
 import { detectorOptions, getDefaultDetectorType } from './detectors/data/componentMap';
 import { getDetectorComponentData, DetectorComponentData } from './detectors/detectorFactory';
+import { ChannelMappingViewer } from './editors/ChannelMappingViewer';
 import { MinMaxSelectionEditor } from './editors/MinMaxSelectionEditor';
 import { NetworkArrayEditor } from './editors/NetworkArrayEditor';
 import { DetectorCanvas } from './renderers/canvas';
@@ -109,6 +110,35 @@ export const DEFAULT_DETECTOR_SETTINGS = {
   COLORBAR: getDefaultColorBar(),
 } as const;
 
+/**
+ * Apply channel mapping to raw measurement data
+ * If mapping exists: sensor[i] = measurements[mapping[i]]
+ * If no mapping: sensor[i] = measurements[i] (sequential, default behavior)
+ */
+const applyChannelMapping = (
+  rawMeasurements: Float32Array,
+  networkId: string,
+  mappingPool: ReturnType<typeof PoolFactory.getChannelMappingPool>
+): Float32Array => {
+  const mapping = mappingPool.getNetworkMapping(networkId);
+
+  if (!mapping) {
+    // No mapping exists - use default sequential behavior
+    return rawMeasurements;
+  }
+
+  // Apply mapping: create new array where sensor[i] gets measurement[mapping[i]]
+  const mappedValues = new Float32Array(mapping.length);
+
+  for (let i = 0; i < mapping.length; i++) {
+    const sourceIdx = mapping[i];
+    // Handle out-of-bounds indices gracefully
+    mappedValues[i] = sourceIdx < rawMeasurements.length ? rawMeasurements[sourceIdx] : NaN;
+  }
+
+  return mappedValues;
+};
+
 export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
   id: 'detector',
   name: 'Detector',
@@ -137,6 +167,7 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
 
   prepareData: (ctx: DimensionContext, cfg: CanvasElementOptions<DetectorConfig>): DetectorData => {
     const dataPool = PoolFactory.getDetectorPool();
+    const mappingPool = PoolFactory.getChannelMappingPool();
 
     if (!cfg.config) {
       dataPool.reset();
@@ -156,15 +187,49 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
       }
     }
 
-    let networkMeasurements = new Map<string, Float32Array>();
-
     if (config.measurements) {
       const scalarResult = ctx.getScalar(config.measurements);
       const rawValues = scalarResult.field?.values || [];
 
+      // Check if this is a config message
+      const messageType = scalarResult.field?.config?.custom?.messageType;
+      if (messageType === 'config') {
+        // Config message - extract and store channel mappings
+        if (rawValues.length > 0) {
+          const configData = rawValues[rawValues.length - 1];
+          const channelMappings = configData?.channelMappings;
+
+          if (channelMappings && typeof channelMappings === 'object') {
+            // Convert object to Map for storage
+            // Expected format: { "AL LEFT:1": [0, 5, 10, ...], "TIN:2": [...] }
+            const mappingsMap = new Map<string, number[]>();
+            for (const [networkId, indices] of Object.entries(channelMappings)) {
+              if (Array.isArray(indices)) {
+                mappingsMap.set(networkId, indices as number[]);
+              }
+            }
+
+            // Store all mappings in the pool
+            mappingPool.updateAllMappings(mappingsMap);
+
+            console.log(
+              `Detector: Channel mappings stored for ${mappingsMap.size} networks`,
+              Array.from(mappingsMap.keys())
+            );
+          }
+        }
+
+        // Don't process measurements for config messages, just return current state
+        dataPool.updateDisplayData(selectedArrays, selectedNetworks);
+        return dataPool.getDetectorData(config.displayMode, config.detectorType);
+      }
+
       if (rawValues.length > 0) {
         const displayValue = rawValues[rawValues.length - 1];
         const useFlatArrayMode = config.flatArrayMode === true;
+
+        // Clear previous measurements before adding new ones
+        dataPool.clearNetworkMeasurements();
 
         // Flat array mode is primarily for testing purposes
         if (useFlatArrayMode) {
@@ -172,27 +237,39 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
           if (Array.isArray(displayValue)) {
             // Direct array of values
             for (const networkId of selectedNetworks) {
-              const networkCopy = dataPool.getFloat32Array(displayValue);
-              networkMeasurements.set(networkId, networkCopy);
+              // Store directly to this network's buffer
+              const storedArray = dataPool.setNetworkMeasurements(networkId, displayValue);
+              // Apply channel mapping
+              const mapped = applyChannelMapping(storedArray, networkId, mappingPool);
+              // If mapping created a new array, store it back
+              if (mapped !== storedArray) {
+                dataPool.setNetworkMeasurements(networkId, mapped);
+              }
             }
           } else if (typeof displayValue === 'object' && displayValue !== null) {
             // Could be an object with a single array property
             const values = Object.values(displayValue)[0];
             if (Array.isArray(values)) {
               for (const networkId of selectedNetworks) {
-                const networkCopy = dataPool.getFloat32Array(values);
-                networkMeasurements.set(networkId, networkCopy);
+                const storedArray = dataPool.setNetworkMeasurements(networkId, values);
+                const mapped = applyChannelMapping(storedArray, networkId, mappingPool);
+                if (mapped !== storedArray) {
+                  dataPool.setNetworkMeasurements(networkId, mapped);
+                }
               }
             }
           } else if (typeof displayValue === 'number') {
             // Single flat array of numbers from multiple time points
             for (const networkId of selectedNetworks) {
-              const networkCopy = new Float32Array(rawValues as number[]);
-              networkMeasurements.set(networkId, networkCopy);
+              const storedArray = dataPool.setNetworkMeasurements(networkId, rawValues as number[]);
+              const mapped = applyChannelMapping(storedArray, networkId, mappingPool);
+              if (mapped !== storedArray) {
+                dataPool.setNetworkMeasurements(networkId, mapped);
+              }
             }
           }
         } else {
-          // Network-mapped mode: expect object with network IDs as keys ()
+          // Network-mapped mode: expect object with network IDs as keys
           if (typeof displayValue === 'object' && !Array.isArray(displayValue) && displayValue !== null) {
             for (const [arrayName, networks] of Object.entries(config.networksByArray || {})) {
               for (const network of networks) {
@@ -200,7 +277,14 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
                 // Try both composite ID and simple network ID for compatibility
                 const values = (displayValue as any)[compositeId] || (displayValue as any)[network];
                 if (Array.isArray(values)) {
-                  networkMeasurements.set(compositeId, dataPool.getFloat32Array(values));
+                  // Store values directly to this network's pooled buffer
+                  const storedArray = dataPool.setNetworkMeasurements(compositeId, values);
+                  // Apply channel mapping if it exists, otherwise storedArray is used as-is
+                  const mapped = applyChannelMapping(storedArray, compositeId, mappingPool);
+                  // If mapping created a new array, store it back to the pool
+                  if (mapped !== storedArray) {
+                    dataPool.setNetworkMeasurements(compositeId, mapped);
+                  }
                 }
               }
             }
@@ -208,8 +292,6 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
         }
       }
     }
-
-    dataPool.updateNetworkMeasurements(networkMeasurements);
 
     const minMeasurement = config.colorBarRange.min.value;
     const maxMeasurement = config.colorBarRange.max.value;
@@ -299,6 +381,15 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
           min: { value: DEFAULT_MIN },
           max: { value: DEFAULT_MAX },
         },
+      })
+      .addCustomEditor({
+        category,
+        id: 'channelMappings',
+        path: 'config.channelMappings',
+        name: 'Channel Mappings',
+        description: 'View current channel mappings configured via backend config messages',
+        editor: ChannelMappingViewer,
+        defaultValue: {},
       });
   },
 };

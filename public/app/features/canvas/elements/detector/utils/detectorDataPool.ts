@@ -17,16 +17,11 @@ export class DetectorDataPool {
   private selectedArrays: string[] = [];
   private selectedNetworks: string[] = [];
 
-  private conversionBuffer: Float32Array;
-
   constructor(maxCapacity: number) {
     this.maxCapacity = maxCapacity;
 
     this.networkMeasurements = new Map();
     this.networkBuffers = new Map();
-
-    // Start with initial size, will grow if needed
-    this.conversionBuffer = new Float32Array(POOL_CONFIG.INITIAL_CONVERSION_BUFFER_SIZE);
 
     // Pre-allocate the main data structure once
     this.detectorData = {
@@ -49,77 +44,86 @@ export class DetectorDataPool {
     return this.maxCapacity;
   }
 
-  getFloat32Array(values: any[] | Float32Array): Float32Array {
+  /**
+   * Convert and store values directly into a network's pooled buffer
+   * This avoids the shared buffer problem by writing directly to each network's buffer
+   * Returns the Float32Array view for that network's data
+   */
+  setNetworkMeasurements(networkId: string, values: any[] | Float32Array): Float32Array {
     if (values instanceof Float32Array) {
-      return values;
+      // Already a Float32Array - still need to copy to this network's pool buffer
+      const count = Math.min(values.length, this.maxCapacity);
+
+      if (values.length > this.maxCapacity) {
+        console.warn(
+          `DetectorDataPool: Network ${networkId} has ${values.length} measurements, ` +
+            `exceeding capacity (${this.maxCapacity}). Truncating.`
+        );
+      }
+
+      // Get or create buffer for this network
+      let buffer = this.networkBuffers.get(networkId);
+      if (!buffer || buffer.length < count) {
+        buffer = new Float32Array(count);
+        this.networkBuffers.set(networkId, buffer);
+      }
+
+      buffer.set(values.subarray(0, count));
+      const view = buffer.subarray(0, count);
+      this.networkMeasurements.set(networkId, view);
+      return view;
     }
 
     const count = Math.min(values.length, this.maxCapacity);
 
     if (values.length > this.maxCapacity) {
-      console.warn(`DetectorDataPool: Truncating values from ${values.length} to ${this.maxCapacity}`);
+      console.warn(
+        `DetectorDataPool: Network ${networkId} has ${values.length} measurements, ` +
+          `exceeding capacity (${this.maxCapacity}). Truncating.`
+      );
     }
 
-    // Grow conversion buffer if needed
-    if (count > this.conversionBuffer.length) {
-      this.conversionBuffer = new Float32Array(count);
+    // Get or create buffer for this specific network
+    let buffer = this.networkBuffers.get(networkId);
+    if (!buffer || buffer.length < count) {
+      buffer = new Float32Array(count);
+      this.networkBuffers.set(networkId, buffer);
     }
 
+    // Convert directly into the network's buffer (no shared temp buffer)
     for (let i = 0; i < count; i++) {
       const val = values[i];
 
       // Handle various invalid cases
       if (val === 'N/A' || val === null || val === undefined || val === '') {
-        this.conversionBuffer[i] = NaN;
+        buffer[i] = NaN;
       } else if (typeof val === 'number') {
-        this.conversionBuffer[i] = val;
+        buffer[i] = val;
       } else {
         // Try to convert string to number, fallback to NaN
         const parsed = parseFloat(val);
-        this.conversionBuffer[i] = isNaN(parsed) ? NaN : parsed;
+        buffer[i] = isNaN(parsed) ? NaN : parsed;
       }
     }
 
-    // Return a view of the actual used portion
-    return this.conversionBuffer.subarray(0, count);
+    // Store the view and return it
+    const view = buffer.subarray(0, count);
+    this.networkMeasurements.set(networkId, view);
+    return view;
   }
 
-  updateNetworkMeasurements(measurements: Map<string, Float32Array>): void {
+  /**
+   * Clear all network measurements (useful when starting fresh)
+   */
+  clearNetworkMeasurements(): void {
     this.networkMeasurements.clear();
+  }
 
-    for (const [networkId, values] of measurements) {
-      const measurementCount = values.length;
-
-      if (measurementCount > this.maxCapacity) {
-        console.warn(
-          `DetectorDataPool: Network ${networkId} has ${measurementCount} measurements, ` +
-            `exceeding capacity (${this.maxCapacity}). Truncating.`
-        );
-      }
-
-      const actualCount = Math.min(measurementCount, this.maxCapacity);
-
-      // Get existing buffer or determine if we need a new one
-      let buffer = this.networkBuffers.get(networkId);
-
-      if (!buffer || buffer.length < actualCount) {
-        // Create new buffer sized exactly to what we need
-        buffer = new Float32Array(actualCount);
-        this.networkBuffers.set(networkId, buffer);
-      }
-
-      if (values.length <= actualCount) {
-        buffer.set(values);
-      } else {
-        buffer.set(values.subarray(0, actualCount));
-      }
-
-      // Store view of actual data
-      this.networkMeasurements.set(networkId, buffer.subarray(0, actualCount));
-    }
-
-    // Clean up unused buffers to free memory (not sure this is needed)
-    this.cleanupUnusedBuffers();
+  /**
+   * Remove a specific network's measurements
+   */
+  removeNetwork(networkId: string): void {
+    this.networkMeasurements.delete(networkId);
   }
 
   /**
@@ -149,6 +153,9 @@ export class DetectorDataPool {
     this.selectedArrays.push(...arrays);
     this.selectedNetworks.push(...networks);
 
+    // Cleanup unused buffers periodically
+    this.cleanupUnusedBuffers();
+
     return this.detectorData.displayData;
   }
 
@@ -162,8 +169,6 @@ export class DetectorDataPool {
   getDetectorData(displayMode: DisplayMode, detectorType: string): DetectorData {
     this.detectorData.displayMode = displayMode;
     this.detectorData.detectorType = detectorType;
-
-    // networkMeasurements is already a reference to the internal map
     return this.detectorData;
   }
 

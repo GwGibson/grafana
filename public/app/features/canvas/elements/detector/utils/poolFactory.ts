@@ -1,16 +1,17 @@
+import ChannelMappingPoolManager from './channelMappingPool';
 import DetectorDataPoolManager from './detectorDataPool';
 import SensorDataPoolManager from './sensorDataPool';
 
 /**
- * Factory to ensure detector and sensor pools are created with matching capacities
+ * Factory to ensure all pools are created with matching capacities
  */
 export class PoolFactory {
   private static isInitialized = false;
   private static capacity = 20000;
 
   /**
-   * Initialize both pools with the same capacity
-   * This ensures measurements and sensors all have matching limits
+   * Initialize all pools with the same capacity
+   * This ensures measurements, sensors, and channel mappings all have matching limits
    */
   static initializePools(capacity = this.capacity): void {
     if (this.isInitialized) {
@@ -20,6 +21,7 @@ export class PoolFactory {
     this.capacity = capacity;
     DetectorDataPoolManager.getInstance(capacity);
     SensorDataPoolManager.getInstance(capacity);
+    ChannelMappingPoolManager.getInstance(capacity);
 
     this.isInitialized = true;
   }
@@ -38,6 +40,13 @@ export class PoolFactory {
     return SensorDataPoolManager.getInstance(this.capacity);
   }
 
+  static getChannelMappingPool() {
+    if (!this.isInitialized) {
+      this.initializePools();
+    }
+    return ChannelMappingPoolManager.getInstance(this.capacity);
+  }
+
   static getCapacity(): number {
     return this.capacity;
   }
@@ -45,6 +54,7 @@ export class PoolFactory {
   static resetPools(): void {
     DetectorDataPoolManager.reset();
     SensorDataPoolManager.reset();
+    ChannelMappingPoolManager.reset();
   }
 }
 
