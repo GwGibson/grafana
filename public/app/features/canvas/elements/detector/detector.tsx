@@ -123,7 +123,7 @@ const applyChannelMapping = (
   const mapping = mappingPool.getNetworkMapping(networkId);
 
   if (!mapping) {
-    // No mapping exists - use default sequential behavior
+    // No mapping exists -> use default sequential behavior
     return rawMeasurements;
   }
 
@@ -165,6 +165,7 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
     },
   }),
 
+  // TODO: Need to clean this up. Much simpler if we assume measurement format and not try to be too flexible.
   prepareData: (ctx: DimensionContext, cfg: CanvasElementOptions<DetectorConfig>): DetectorData => {
     const dataPool = PoolFactory.getDetectorPool();
     const mappingPool = PoolFactory.getChannelMappingPool();
@@ -211,11 +212,6 @@ export const detectorItem: CanvasElementItem<DetectorConfig, DetectorData> = {
 
             // Store all mappings in the pool
             mappingPool.updateAllMappings(mappingsMap);
-
-            console.log(
-              `Detector: Channel mappings stored for ${mappingsMap.size} networks`,
-              Array.from(mappingsMap.keys())
-            );
           }
         }
 
